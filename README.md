@@ -8,7 +8,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v3 (polish) is in progress: order expiry and the hash-order test are done; next is the design write-up. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v3 is done: order expiry, a test for hidden dependence on hash-table order, and [`docs/DESIGN.md`](docs/DESIGN.md), which explains every design decision and what was rejected. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -87,6 +87,7 @@ Then it runs four stress checks: random commands from fixed seeds (160,000 in to
 | `tools/gen_bench.py` | Writes the seeded benchmark workloads into `build/` |
 | `tools/time_engine.py` | Times the whole `engine.exe` on a command file, from outside |
 | `docs/BENCHMARKS.md` | Benchmark results, and how they were measured |
+| `docs/DESIGN.md` | Why the engine is built the way it is: each decision, the alternatives rejected, and the costs |
 | `docs/SPEC.md` | The rules and the exact input/output format: the contract the tests check |
 | `docs/STEPS.md` | The build plan, one small step at a time |
 | `docs/PROGRESS.md` | A log of each work session |

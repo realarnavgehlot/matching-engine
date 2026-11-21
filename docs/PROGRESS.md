@@ -2,6 +2,12 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 20 done, v3 complete (written by Claude, at Arnav's request)
+
+- `docs/DESIGN.md`: every design decision (paise, logical time, one thread, `std::map` levels, templates, the pool and linked lists, hash tables only for lookup, the expiry map, MODIFY/market/rejection rules, parser and output buffer, the testing strategy, benchmarking method) with why, what was rejected, and the cost. Plus known limits. Linked from the README.
+- **Next:** v4 (planned in `docs/STEPS.md`).
+- **Open question:** none.
+
 ## 2026-11-22: Step 19 done, hash-order test (code written by Claude, at Arnav's request)
 
 - `src/order_book.hpp`: the hash tables take an `IdHash` type. Normally `std::hash`; with `-DENGINE_SCRAMBLED_HASH` it's MurmurHash3's fmix64, and the size hint is skipped, so the tables' internal order is completely different.
