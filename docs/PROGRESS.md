@@ -2,6 +2,15 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 13 done, differential test (code written by Claude, at Arnav's request)
+
+- Planned v2 in `docs/STEPS.md` (Steps 13–17): differential test first, then benchmarks, then O(1) cancel/modify, then faster I/O if the numbers say so.
+- `tools/reference_engine.py`: a second implementation of the spec in Python. It stores no queue order (each order has a priority number instead) and finds the best price with min/max, so it doesn't share the C++ engine's data-structure bugs. It agrees with all 36 expected outputs.
+- `run_tests.py` now runs four seeded stress files (seed 1: 100,001 commands; seeds 2–4: 20,001 commands with a PRINT every 250) and fails on the first line where the engine and the reference differ. Whole run: about 9 seconds.
+- Planted 5 bugs in throwaway copies of the engine (equal-qty MODIFY losing its place, no trade at an exactly touching price, LIFO queue, index not cleared on fill, price-change MODIFY keeping its place). The differential test first caught 4; the generator almost never sent a same-price, same-qty MODIFY. Changed the generator to aim MODIFY at the rule 11/12 edges; now all 5 are caught.
+- **Next:** Step 14 (benchmarks), recording the v1 numbers before any speed change.
+- **Open question:** none.
+
 ## 2026-11-22: v1 done, Steps 8–12 (code written by Claude, at Arnav's request)
 
 - `docs/SPEC.md` now defines v1: input rules, the `REJECTED reason=...` line and the order of checks, `MARKET_BUY`/`MARKET_SELL` with `UNFILLED`, and `MODIFY` (rules 10–12). These rules follow common exchange practice; change them if you disagree.

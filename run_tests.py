@@ -9,10 +9,15 @@ A test is a pair of files in tests/:
 
 Every test runs twice. If the two outputs differ, the engine is not deterministic.
 
-After the tests, a stress check generates 100,000 random commands with a fixed seed
-(tools/gen_commands.py), runs them twice, and checks that the outputs match, that every
-line is well formed, and that every printed book is sorted and never crossed.
-Skip it with:
+Every test is also run through tools/reference_engine.py, a second, independent
+implementation of docs/SPEC.md, which must match the expected output too.
+
+After the tests, the stress checks generate random commands with fixed seeds
+(tools/gen_commands.py). For each seed the engine runs twice, and the check fails if:
+- the two runs differ (not deterministic),
+- any line is malformed, or any printed book is unsorted or crossed, or
+- the engine's output differs from the reference engine's in any line (differential test).
+Skip them with:
     python run_tests.py --no-stress
 """
 
@@ -25,12 +30,19 @@ import sys
 ROOT = os.path.dirname(os.path.abspath(__file__))
 EXE = os.path.join(ROOT, "engine.exe" if os.name == "nt" else "engine")
 TIMEOUT_SECONDS = 5
-STRESS_SEED = 1
-STRESS_COUNT = 100_000
 STRESS_TIMEOUT_SECONDS = 60
+# (seed, number of commands, PRINT every N commands). The small runs print the book often,
+# so the reference comparison also checks the whole book many times.
+STRESS_RUNS = [
+    (1, 100_000, 10_000),
+    (2, 20_000, 250),
+    (3, 20_000, 250),
+    (4, 20_000, 250),
+]
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 from gen_commands import generate  # noqa: E402
+import reference_engine  # noqa: E402
 
 
 def build():
@@ -162,15 +174,30 @@ def check_stress_output(lines, command_count):
     return None
 
 
-def stress():
-    """Run the seeded stress check. Returns True if it passed."""
+def compare_with_reference(engine_lines, reference_lines, command_path):
+    """Returns an error message describing the first difference, or None if they match."""
+    for i in range(max(len(engine_lines), len(reference_lines))):
+        mine = engine_lines[i] if i < len(engine_lines) else "(no line)"
+        ref = reference_lines[i] if i < len(reference_lines) else "(no line)"
+        if mine != ref:
+            return (
+                f"engine and reference differ at output line {i + 1}\n"
+                f"        engine:    {mine}\n"
+                f"        reference: {ref}\n"
+                f"      replay it: .\\engine.exe {os.path.relpath(command_path, ROOT)}"
+            )
+    return None
+
+
+def stress(seed, count, print_every):
+    """Run one seeded stress check. Returns True if it passed."""
     os.makedirs(os.path.join(ROOT, "build"), exist_ok=True)
-    path = os.path.join(ROOT, "build", f"stress_seed{STRESS_SEED}.txt")
-    commands = generate(STRESS_SEED, STRESS_COUNT)
+    path = os.path.join(ROOT, "build", f"stress_seed{seed}.txt")
+    commands = generate(seed, count, print_every)
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(commands) + "\n")
 
-    name = f"stress (seed {STRESS_SEED}, {len(commands):,} commands)"
+    name = f"stress seed {seed} ({len(commands):,} commands)"
     first, error = run_engine(path, STRESS_TIMEOUT_SECONDS)
     if error is None:
         second, error = run_engine(path, STRESS_TIMEOUT_SECONDS)
@@ -178,11 +205,17 @@ def stress():
             error = "two runs gave different output, so the engine is not deterministic"
     if error is None:
         error = check_stress_output(first, len(commands))
+    if error is None:
+        error = compare_with_reference(first, reference_engine.run(commands), path)
     if error:
         print(f"FAIL  {name}: {error}")
         return False
     trades = sum(1 for line in first if " TRADE " in line)
-    print(f"PASS  {name}: {len(first):,} output lines, {trades:,} trades")
+    books = sum(1 for line in first if line.endswith(" BOOK"))
+    print(
+        f"PASS  {name}: {len(first):,} lines, {trades:,} trades, {books} books, "
+        "same as reference"
+    )
     return True
 
 
@@ -208,21 +241,26 @@ def main():
             second, error = run_engine(input_path)
             if error is None and second != first:
                 error = "two runs gave different output, so the engine is not deterministic"
+        reference = reference_engine.run_file(input_path)
         if error:
             print(f"FAIL  {name}: {error}")
-        elif first == expected:
-            print(f"PASS  {name}")
-            passed += 1
-        else:
+        elif first != expected:
             print(f"FAIL  {name}")
             show_difference(expected, first)
+        elif reference != expected:
+            print(f"FAIL  {name}: the engine is right, but tools/reference_engine.py is not")
+            show_difference(expected, reference)
+        else:
+            print(f"PASS  {name}")
+            passed += 1
 
     print(f"\n{passed}/{len(tests)} tests passed")
     all_passed = passed == len(tests)
 
     if "--no-stress" not in sys.argv:
         print()
-        all_passed = stress() and all_passed
+        for seed, count, print_every in STRESS_RUNS:
+            all_passed = stress(seed, count, print_every) and all_passed
 
     sys.exit(0 if all_passed else 1)
 

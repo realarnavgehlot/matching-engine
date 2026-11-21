@@ -30,6 +30,7 @@ def generate(seed, count, print_every=10_000):
     lines = []
     next_id = 1
     maybe_resting = []  # ids of limit orders that might still rest (the engine decides)
+    sent = {}  # id -> (qty, price) last sent for that order, to aim MODIFY at the rule 11/12 edges
 
     for i in range(1, count + 1):
         if i % print_every == 0:
@@ -47,6 +48,7 @@ def generate(seed, count, print_every=10_000):
                 price = rng.randint(9_990, 10_020)
             lines.append(f"{side} {next_id} {qty} {price}")
             maybe_resting.append(next_id)
+            sent[next_id] = (qty, price)
             next_id += 1
         elif r < 0.70:
             # Cancel, usually an order that might be resting, sometimes an unknown id.
@@ -59,11 +61,22 @@ def generate(seed, count, print_every=10_000):
                 order_id = rng.randint(1, next_id + 10)
             lines.append(f"CANCEL {order_id}")
         elif r < 0.82:
-            # Modify a random order: sometimes keeping its price, sometimes not.
+            # Modify an order. Most modifies keep the price and send the same, less or more
+            # quantity than last time, because rules 11 and 12 change exactly at those edges.
+            # (If the order was partly filled, "the same as last time" is really more.)
             order_id = rng.choice(maybe_resting) if maybe_resting else rng.randint(1, next_id)
-            qty = rng.randint(1, 100)
-            price = rng.randint(9_985, 10_015)
+            old_qty, old_price = sent.get(order_id, (rng.randint(1, 100), 10_000))
+            kind = rng.random()
+            if kind < 0.25:
+                qty, price = old_qty, old_price                       # same price, same qty
+            elif kind < 0.50:
+                qty, price = rng.randint(1, old_qty), old_price       # same price, not more
+            elif kind < 0.65:
+                qty, price = old_qty + rng.randint(1, 20), old_price  # same price, more
+            else:
+                qty, price = rng.randint(1, 100), rng.randint(9_985, 10_015)  # anything
             lines.append(f"MODIFY {order_id} {qty} {price}")
+            sent[order_id] = (qty, price)
         elif r < 0.92:
             side = rng.choice(("MARKET_BUY", "MARKET_SELL"))
             lines.append(f"{side} {next_id} {rng.randint(1, 150)}")

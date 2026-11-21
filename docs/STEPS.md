@@ -394,7 +394,22 @@ Things to be able to explain about v1:
 - Why is `match()` a template, and why can its definition live in `order_book.cpp` and not in the header?
 - What can the stress check catch, and what can't it? (It checks the shape of the output, not that each trade is the right one.)
 
-## After v1 (planned in detail later)
+## v2 checklist: speed
 
-- **v2, speed:** a faster book (pooled memory), benchmarks (orders per second, latency), and a differential test: run the simple and the fast version on the same commands and check that the outputs are identical.
+Speed work changes how the book is stored, not what it prints. So the safety net comes first: every v2 step must keep `python run_tests.py` passing, including the differential test.
+
+- [x] Step 13: Differential test. `tools/reference_engine.py` is a second implementation of `docs/SPEC.md` in Python, built differently on purpose. `run_tests.py` checks it against every expected output, then checks that the engine and the reference print exactly the same lines on four seeded stress files.
+- [ ] Step 14: Benchmarks. A separate program, `bench/bench.cpp`, that loads a command file into memory, runs it through `OrderBook` with output thrown away, and reports commands per second and latency per command (median, 99th percentile, worst). The clock lives only in the benchmark, never in the engine (rule 6). Record the v1 numbers in `docs/BENCHMARKS.md` before changing anything.
+- [ ] Step 15: O(1) cancel and modify. Today CANCEL and MODIFY search their level one order at a time. Store orders in a pool (a `std::vector<Order>` plus a list of free slots), link the orders in each level as a doubly linked list of slot numbers, and have the index map an id straight to its slot. Measure again.
+- [ ] Step 16: Faster input and output, only if Step 14's numbers say they matter: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
+- [ ] Step 17: README section with before/after numbers, and what each change bought.
+
+Things to be able to explain about Step 13:
+
+- Why is a second implementation in a different style better than a second copy of the same code?
+- The first version of the random generator missed a planted bug (a MODIFY with the same quantity losing its place). Why, and what was changed so it doesn't?
+- A differential test says the two implementations agree. When could they agree and both be wrong?
+
+## After v2 (planned in detail later)
+
 - **v3, polish:** order expiry as a command (never by reading the clock), a test that catches hidden dependence on hash-map order, and a README that explains the design decisions.

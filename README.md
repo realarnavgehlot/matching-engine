@@ -7,7 +7,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v1 is done: 36 tests, one or more for every rule, plus a seeded 100,000-command stress check. Next: v2 (speed). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: next is benchmarks. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -36,7 +36,9 @@ g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/order_book.cpp
 python run_tests.py
 ```
 
-This builds the engine, runs every test in `tests/` twice, and compares the output with the expected output. If the two runs differ, the engine isn't deterministic. Then it runs a stress check: 100,000 random commands from a fixed seed, run twice, with every output line and every printed book checked. Add `--no-stress` to skip it. (If `python` isn't found, try `py run_tests.py`.)
+This builds the engine, runs every test in `tests/` twice, and compares the output with the expected output. If the two runs differ, the engine isn't deterministic. Each test is also run through `tools/reference_engine.py`, a second, independent implementation of the spec.
+
+Then it runs four stress checks: random commands from fixed seeds (160,000 in total), each run twice, with every output line and every printed book checked, and the whole output compared line by line with the reference engine's (a differential test). Add `--no-stress` to skip them. (If `python` isn't found, try `py run_tests.py`.)
 
 ## What's in this folder
 
@@ -49,6 +51,7 @@ This builds the engine, runs every test in `tests/` twice, and compares the outp
 | `docs/PROGRESS.md` | A log of each work session |
 | `tests/` | Test cases: `name.in.txt` holds the commands, `name.expected.txt` the exact expected output |
 | `tools/gen_commands.py` | Makes a random but repeatable command file from a seed, for stress tests |
+| `tools/reference_engine.py` | A second implementation of the spec in Python, used to check the engine's output line by line |
 | `data/sample.txt` | A sample command file |
 | `run_tests.py` | Builds the engine and runs all the tests and the stress check |
 | `CLAUDE.md` | Instructions for Claude Opus, the AI assistant used on this project |
