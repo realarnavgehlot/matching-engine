@@ -2,6 +2,16 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 14 done, benchmarks (code written by Claude, at Arnav's request)
+
+- Moved line parsing out of `main()` into `src/command.hpp` and `src/command.cpp` (`isCommandLine`, `parseCommand`, `runCommand`), so the engine and the benchmark share it. All tests and the differential check still pass. The build command now has three `.cpp` files.
+- `bench/bench.cpp`: parses the file first, then times only the book; throughput over several runs, then latency per command, broken down by command type. Output is formatted and thrown away. It reports the clock's resolution (100 ns here), because small latencies are rough below that.
+- `tools/gen_bench.py`: three seeded workloads (mixed, 1,000,001 commands; deep_cancel and deep_modify, 20,000 orders at one price).
+- `run_tests.py` now also builds `bench.exe`, so a change in `src/` can't break it unnoticed.
+- v1 numbers in `docs/BENCHMARKS.md`: book about 2.3 million commands per second on mixed; whole `engine.exe` about 2.1 s for 1 million commands, so parsing and output cost far more than the book; one CANCEL in a 20,000-order level about 5 µs.
+- **Next:** Step 15 (O(1) cancel and modify), then measure again.
+- **Open question:** the laptop's numbers vary by about 10% between runs. Good enough to see 2x changes, not small ones.
+
 ## 2026-11-22: Step 13 done, differential test (code written by Claude, at Arnav's request)
 
 - Planned v2 in `docs/STEPS.md` (Steps 13–17): differential test first, then benchmarks, then O(1) cancel/modify, then faster I/O if the numbers say so.

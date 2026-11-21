@@ -7,7 +7,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: next is benchmarks. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: benchmarks are done; next is O(1) cancel and modify. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -26,9 +26,19 @@ The exact rules and output format are in [`docs/SPEC.md`](docs/SPEC.md).
 ## Build and run (Windows, PowerShell)
 
 ```powershell
-g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/order_book.cpp
+g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/command.cpp src/order_book.cpp
 .\engine.exe data\sample.txt
 ```
+
+## Benchmarks
+
+```powershell
+python tools/gen_bench.py
+g++ -std=c++17 -Wall -Wextra -O2 -o bench.exe bench/bench.cpp src/command.cpp src/order_book.cpp
+.\bench.exe build\bench_mixed.txt
+```
+
+On an AMD Ryzen 5 5600H, the v1 book handles about **2.3 million commands per second** on a realistic mix. Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Run the tests
 
@@ -44,8 +54,12 @@ Then it runs four stress checks: random commands from fixed seeds (160,000 in to
 
 | Path | What it is |
 |---|---|
-| `src/main.cpp` | Reads the command file and parses each line |
+| `src/main.cpp` | Reads the command file and runs each command |
+| `src/command.hpp`, `src/command.cpp` | Turns one line into a command, and runs it on the book |
 | `src/order_book.hpp`, `src/order_book.cpp` | The order book: matching, cancel, modify, and all output |
+| `bench/bench.cpp` | The benchmark: times the book on a command file |
+| `tools/gen_bench.py` | Writes the seeded benchmark workloads into `build/` |
+| `docs/BENCHMARKS.md` | Benchmark results, and how they were measured |
 | `docs/SPEC.md` | The rules and the exact input/output format: the contract the tests check |
 | `docs/STEPS.md` | The build plan, one small step at a time |
 | `docs/PROGRESS.md` | A log of each work session |

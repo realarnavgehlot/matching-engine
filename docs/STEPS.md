@@ -399,10 +399,18 @@ Things to be able to explain about v1:
 Speed work changes how the book is stored, not what it prints. So the safety net comes first: every v2 step must keep `python run_tests.py` passing, including the differential test.
 
 - [x] Step 13: Differential test. `tools/reference_engine.py` is a second implementation of `docs/SPEC.md` in Python, built differently on purpose. `run_tests.py` checks it against every expected output, then checks that the engine and the reference print exactly the same lines on four seeded stress files.
-- [ ] Step 14: Benchmarks. A separate program, `bench/bench.cpp`, that loads a command file into memory, runs it through `OrderBook` with output thrown away, and reports commands per second and latency per command (median, 99th percentile, worst). The clock lives only in the benchmark, never in the engine (rule 6). Record the v1 numbers in `docs/BENCHMARKS.md` before changing anything.
+- [x] Step 14: Benchmarks. A separate program, `bench/bench.cpp`, that loads a command file into memory, runs it through `OrderBook` with output thrown away, and reports commands per second and latency per command (median, 99th percentile, worst). The clock lives only in the benchmark, never in the engine (rule 6). Record the v1 numbers in `docs/BENCHMARKS.md` before changing anything.
 - [ ] Step 15: O(1) cancel and modify. Today CANCEL and MODIFY search their level one order at a time. Store orders in a pool (a `std::vector<Order>` plus a list of free slots), link the orders in each level as a doubly linked list of slot numbers, and have the index map an id straight to its slot. Measure again.
-- [ ] Step 16: Faster input and output, only if Step 14's numbers say they matter: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
+- [ ] Step 16: Faster input and output. Step 14's numbers say they matter: parsing takes longer than the book, and the whole engine takes about 5 times as long as the book alone (see `docs/BENCHMARKS.md`). Ideas: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
 - [ ] Step 17: README section with before/after numbers, and what each change bought.
+
+Things to be able to explain about Step 14:
+
+- Why does the benchmark parse the whole file before starting the clock?
+- Why does it throw the output away, and why through a stream buffer that still counts bytes, instead of not printing at all?
+- The clock moves in 100 ns steps here. What does that mean for a latency reported as "100 ns"?
+- Why report p99 and p99.9 and not just the average?
+- The book handles 2.3 million commands per second, but `engine.exe` only about 0.5 million. Where does the rest of the time go?
 
 Things to be able to explain about Step 13:
 

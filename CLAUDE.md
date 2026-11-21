@@ -31,7 +31,8 @@ The full contract is in `docs/SPEC.md`. In short:
 
 ## How the project runs
 
-- Build: `g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/order_book.cpp`
+- Build: `g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/command.cpp src/order_book.cpp`
+- Benchmark: see `docs/BENCHMARKS.md`. The clock lives only in `bench/bench.cpp`, never in `src/`.
 - Run: `.\engine.exe data\sample.txt`. The command file is passed as an argument, because PowerShell does not support `<` for input redirection.
 - Test: `python run_tests.py`
 - The plan is `docs/STEPS.md`. Work only on the current step.

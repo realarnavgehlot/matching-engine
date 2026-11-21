@@ -61,6 +61,16 @@ def build():
         print("Build failed. Fix the compiler errors above, then run the tests again.")
         sys.exit(1)
 
+    # The benchmark uses the same book, so build it too: a change in src/ must not break it.
+    bench_sources = [os.path.join(ROOT, "bench", "bench.cpp")] + [
+        s for s in sources if os.path.basename(s) != "main.cpp"
+    ]
+    bench_exe = os.path.join(ROOT, "bench.exe" if os.name == "nt" else "bench")
+    command = ["g++", "-std=c++17", "-Wall", "-Wextra", "-O2", "-o", bench_exe] + bench_sources
+    if subprocess.run(command, cwd=ROOT).returncode != 0:
+        print("The benchmark (bench/bench.cpp) failed to build. Fix the errors above.")
+        sys.exit(1)
+
 
 def normalize(text):
     """Ignore line-ending differences, spaces at the ends of lines, and blank lines at the end."""
