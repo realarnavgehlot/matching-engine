@@ -7,7 +7,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: benchmarks are done; next is O(1) cancel and modify. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: benchmarks and O(1) cancel/modify are done; next is faster input and output. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -38,7 +38,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -o bench.exe bench/bench.cpp src/command.cpp sr
 .\bench.exe build\bench_mixed.txt
 ```
 
-On an AMD Ryzen 5 5600H, the v1 book handles about **2.3 million commands per second** on a realistic mix. Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+On an AMD Ryzen 5 5600H, the book handles about **2.5 million commands per second** on a realistic mix. Since v2 Step 15, a cancel or modify takes the same time however long its queue is: in a queue of 20,000 orders that's about **20 times faster** than v1 (about 0.2 µs instead of 5 µs). Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Run the tests
 
@@ -56,7 +56,7 @@ Then it runs four stress checks: random commands from fixed seeds (160,000 in to
 |---|---|
 | `src/main.cpp` | Reads the command file and runs each command |
 | `src/command.hpp`, `src/command.cpp` | Turns one line into a command, and runs it on the book |
-| `src/order_book.hpp`, `src/order_book.cpp` | The order book: matching, cancel, modify, and all output |
+| `src/order_book.hpp`, `src/order_book.cpp` | The order book: a pool of orders linked into price levels; matching, cancel, modify, and all output |
 | `bench/bench.cpp` | The benchmark: times the book on a command file |
 | `tools/gen_bench.py` | Writes the seeded benchmark workloads into `build/` |
 | `docs/BENCHMARKS.md` | Benchmark results, and how they were measured |

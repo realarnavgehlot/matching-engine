@@ -1,19 +1,28 @@
 #include "order_book.hpp"
 
-#include <algorithm>  // std::min, std::find_if
+#include <algorithm>  // std::min
 #include <limits>     // std::numeric_limits
 
-namespace {
+OrderBook::OrderBook(std::ostream& out) : out_(out) {}
 
-// Find order `id` in one level's queue. The caller knows it is there (the index says so).
-Level::iterator findOrder(Level& queue, std::int64_t id) {
-    return std::find_if(queue.begin(), queue.end(),
-                        [id](const Order& order) { return order.id == id; });
+// ---------------------------------------------------------------------------
+// The pool
+// ---------------------------------------------------------------------------
+
+Slot OrderBook::allocate(const Order& order) {
+    if (!free_.empty()) {  // reuse a freed slot if there is one
+        Slot slot = free_.back();
+        free_.pop_back();
+        pool_[slot] = order;
+        return slot;
+    }
+    pool_.push_back(order);  // may move the whole array, which is why we hold slots, not pointers
+    return static_cast<Slot>(pool_.size() - 1);
 }
 
-}  // namespace
-
-OrderBook::OrderBook(std::ostream& out) : out_(out) {}
+void OrderBook::release(Slot slot) {
+    free_.push_back(slot);
+}
 
 // ---------------------------------------------------------------------------
 // Templates shared by the bid side and the ask side
@@ -34,7 +43,8 @@ std::int64_t OrderBook::match(Book& opposite, std::uint64_t seq, Side side, std:
         }
 
         Level& queue = level->second;
-        Order& resting = queue.front();                    // earliest order at this price
+        Slot slot = queue.head;                            // earliest order at this price
+        Order& resting = pool_[slot];
         std::int64_t traded = std::min(qty, resting.qty);  // rule 5
 
         std::int64_t buyId = (side == Side::Buy) ? id : resting.id;
@@ -47,11 +57,17 @@ std::int64_t OrderBook::match(Book& opposite, std::uint64_t seq, Side side, std:
 
         // Rule 7: a filled order leaves the book, and so does an empty level.
         if (resting.qty == 0) {
-            index_.erase(resting.id);  // before pop_front(), while `resting` still exists
-            queue.pop_front();
-        }
-        if (queue.empty()) {
-            opposite.erase(level);
+            index_.erase(resting.id);
+            queue.head = resting.next;  // the next order in line is now first
+            if (queue.head != kNoSlot) {
+                pool_[queue.head].prev = kNoSlot;
+            } else {
+                queue.tail = kNoSlot;
+            }
+            release(slot);
+            if (queue.head == kNoSlot) {
+                opposite.erase(level);
+            }
         }
     }
     return qty;
@@ -61,47 +77,49 @@ std::int64_t OrderBook::match(Book& opposite, std::uint64_t seq, Side side, std:
 template <typename Book>
 void OrderBook::rest(Book& book, Side side, std::uint64_t seq, std::int64_t id, std::int64_t qty,
                      std::int64_t price) {
-    book[price].push_back(Order{id, qty, seq});  // [] creates the level if it's new
-    index_[id] = Location{side, price};
+    // Allocate first: it may move the pool, so take no references into it before this.
+    Slot slot = allocate(Order{id, qty, price, seq, side, kNoSlot, kNoSlot});
+    Level& queue = book[price];  // [] creates the level if it's new
+    if (queue.tail == kNoSlot) {
+        queue.head = slot;
+    } else {
+        pool_[queue.tail].next = slot;
+        pool_[slot].prev = queue.tail;
+    }
+    queue.tail = slot;
+    index_[id] = slot;
 }
 
-// Take one order out of its level. The other orders keep their places.
+// Take one order out of its level's list. The others keep their places.
+// This is the step that no longer depends on how long the queue is.
 template <typename Book>
-void OrderBook::removeOrder(Book& book, std::int64_t price, std::int64_t id) {
-    auto level = book.find(price);
+void OrderBook::unlink(Book& book, Slot slot) {
+    Order& order = pool_[slot];
+    auto level = book.find(order.price);
     Level& queue = level->second;
-    queue.erase(findOrder(queue, id));
-    if (queue.empty()) {
+
+    if (order.prev != kNoSlot) {
+        pool_[order.prev].next = order.next;
+    } else {
+        queue.head = order.next;  // it was first in line
+    }
+    if (order.next != kNoSlot) {
+        pool_[order.next].prev = order.prev;
+    } else {
+        queue.tail = order.prev;  // it was last in line
+    }
+
+    if (queue.head == kNoSlot) {
         book.erase(level);
     }
-    index_.erase(id);
-}
-
-// Rules 11 and 12.
-template <typename Book>
-void OrderBook::modifyIn(Book& book, std::uint64_t seq, Side side, std::int64_t id,
-                         std::int64_t qty, std::int64_t price, std::int64_t oldPrice) {
-    out_ << "[" << seq << "] MODIFIED id=" << id << " qty=" << qty << " price=" << price << "\n";
-
-    Level& queue = book.find(oldPrice)->second;
-    auto order = findOrder(queue, id);
-
-    if (price == oldPrice && qty <= order->qty) {
-        order->qty = qty;  // rule 11: same price, not more quantity, so it keeps its place
-        return;
-    }
-
-    // Rule 12: it loses its place and enters again as if it were new.
-    removeOrder(book, oldPrice, id);
-    enter(seq, side, id, qty, price);
 }
 
 template <typename Book>
 void OrderBook::printSide(const Book& book, const char* name) const {
     for (const auto& [price, queue] : book) {
         out_ << "  " << name << " " << price << ":";
-        for (const Order& order : queue) {
-            out_ << " " << order.id << "x" << order.qty;
+        for (Slot slot = queue.head; slot != kNoSlot; slot = pool_[slot].next) {
+            out_ << " " << pool_[slot].id << "x" << pool_[slot].qty;
         }
         out_ << "\n";
     }
@@ -179,12 +197,19 @@ void OrderBook::modify(std::uint64_t seq, std::int64_t id, std::int64_t qty,
         out_ << "[" << seq << "] MODIFY_REJECTED id=" << id << "\n";
         return;
     }
-    Location where = found->second;
-    if (where.side == Side::Buy) {
-        modifyIn(bids_, seq, where.side, id, qty, price, where.price);
-    } else {
-        modifyIn(asks_, seq, where.side, id, qty, price, where.price);
+    Slot slot = found->second;
+    Order& order = pool_[slot];
+    out_ << "[" << seq << "] MODIFIED id=" << id << " qty=" << qty << " price=" << price << "\n";
+
+    if (price == order.price && qty <= order.qty) {
+        order.qty = qty;  // rule 11: same price, not more quantity, so it keeps its place
+        return;
     }
+
+    // Rule 12: it loses its place and enters again as if it were new.
+    Side side = order.side;  // copy it: `order` is reused once its slot is released
+    removeResting(slot);
+    enter(seq, side, id, qty, price);
 }
 
 void OrderBook::cancel(std::uint64_t seq, std::int64_t id) {
@@ -198,12 +223,7 @@ void OrderBook::cancel(std::uint64_t seq, std::int64_t id) {
         out_ << "[" << seq << "] CANCEL_REJECTED id=" << id << "\n";
         return;
     }
-    Location where = found->second;
-    if (where.side == Side::Buy) {
-        removeOrder(bids_, where.price, id);
-    } else {
-        removeOrder(asks_, where.price, id);
-    }
+    removeResting(found->second);
     out_ << "[" << seq << "] CANCELLED id=" << id << "\n";
 }
 
@@ -223,7 +243,7 @@ void OrderBook::reject(std::uint64_t seq, const char* reason) {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers used by limit, market and modify
+// Helpers used by limit, market, modify and cancel
 // ---------------------------------------------------------------------------
 
 void OrderBook::enter(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty,
@@ -245,4 +265,15 @@ std::int64_t OrderBook::matchIncoming(std::uint64_t seq, Side side, std::int64_t
         return match(asks_, seq, side, id, qty, limit);  // rule 2
     }
     return match(bids_, seq, side, id, qty, limit);      // rule 3
+}
+
+void OrderBook::removeResting(Slot slot) {
+    std::int64_t id = pool_[slot].id;
+    if (pool_[slot].side == Side::Buy) {
+        unlink(bids_, slot);
+    } else {
+        unlink(asks_, slot);
+    }
+    index_.erase(id);
+    release(slot);
 }

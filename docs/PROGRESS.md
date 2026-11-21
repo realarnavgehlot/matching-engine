@@ -2,6 +2,14 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 15 done, O(1) cancel and modify (code written by Claude, at Arnav's request)
+
+- Rewrote the storage in `src/order_book.hpp/.cpp`: orders live in a pool (`std::vector<Order>`), named by slot number; each price level is a doubly linked list of slots (`head`, `tail`, and `prev`/`next` in each order); the index maps id → slot; freed slots are reused from a free list. `Location` and the `std::deque` are gone. `command.cpp` and `main.cpp` didn't change.
+- Output unchanged: 36/36 tests, the 4 differential stress seeds, and 30 extra seeds (10–39) all match the reference engine.
+- Benchmarks (`docs/BENCHMARKS.md`): deep_cancel and deep_modify about 20 times faster (a cancel in a 20,000-order level: about 5 µs → about 0.2 µs); mixed p99 4.2 µs → 1.3 µs; mixed throughput slightly better but within noise. PRINT of a big book got slower (about 4 → 12 ms): linked lists have poor cache locality.
+- **Next:** Step 16 (faster input and output), where most of the end-to-end time is.
+- **Open question:** a few single commands take milliseconds, probably the pool's vector growing and copying. `pool_.reserve(...)` might fix it; measure before deciding.
+
 ## 2026-11-22: Step 14 done, benchmarks (code written by Claude, at Arnav's request)
 
 - Moved line parsing out of `main()` into `src/command.hpp` and `src/command.cpp` (`isCommandLine`, `parseCommand`, `runCommand`), so the engine and the benchmark share it. All tests and the differential check still pass. The build command now has three `.cpp` files.

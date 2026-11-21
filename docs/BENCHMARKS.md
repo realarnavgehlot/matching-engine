@@ -79,3 +79,39 @@ The single PRINT at the end, of a book with tens of thousands of orders, takes a
 1. **The book is not the bottleneck end to end.** It takes about 0.43 s of the engine's 2.1 s. Parsing (a new `std::istringstream` and `std::string` for every line) takes longer than the book does, and writing the output takes most of the rest. So Step 16 (faster input and output) is worth doing.
 2. **CANCEL and MODIFY are slow in deep queues.** In a level of 20,000 orders, a cancel takes about 5 µs at the median, against about 0.2 µs in the mixed workload, because it searches the level from the front. The work grows with the queue's length. This is what Step 15 fixes.
 3. **Adding an order is cheap** (about 0.1–0.3 µs) when it doesn't trade.
+
+---
+
+## v2 Step 15: pool and linked lists (2026-11-22)
+
+Same machine, compiler and workloads. Book: orders live in one `std::vector<Order>` (the pool) and are named by slot number; each price level is a doubly linked list of slots; the index maps an id straight to its slot; freed slots are reused. CANCEL and MODIFY unlink an order in a few steps, without searching its level.
+
+The output is unchanged: all 36 tests pass, and the engine matches the reference engine line for line on the 4 stress seeds in `run_tests.py` and on 30 more (seeds 10–39, 20,000 commands each).
+
+### Throughput, book only
+
+| Workload | v1 best | Step 15 best | Step 15 median |
+|---|---|---|---|
+| mixed | 2.35–2.44 million/s (411–425 ms) | 2.47–3.00 million/s (333–405 ms) | 2.18–2.48 million/s (403–460 ms) |
+| deep_cancel | 0.33–0.35 million/s (113–120 ms) | 6.40–6.99 million/s (5.7–6.3 ms) | 5.73–6.53 million/s (6.1–7.0 ms) |
+| deep_modify | 0.26–0.34 million/s (117–153 ms) | 5.66–6.33 million/s (6.3–7.1 ms) | 4.19–5.90 million/s (6.8–9.5 ms) |
+
+### Latency per command (ns), v1 → Step 15
+
+| Workload | Type | p50 | p90 | p99 | p99.9 |
+|---|---|---|---|---|---|
+| mixed | all | 300 → 300 | 800 → 700 | 4,200 → 1,300 | 9,500 → 3,100 |
+| mixed | cancel | 200 → 300 | 1,900 → 700 | 5,800 → 1,100 | 9,200 → 1,800 |
+| mixed | modify | 200 → 300 | 1,900 → 800 | 7,000 → 1,400 | 11,300 → 2,300 |
+| mixed | limit | 300 → 300 | 600 → 600 | 1,200 → 1,000 | 2,500 → 4,300 |
+| deep_cancel | cancel | 5,000 → 200 | 13,500 → 300 | 20,200 → 500 | 33,400 → 1,700 |
+| deep_modify | modify | 5,600 → 300 | 13,600 → 500 | 16,700 → 700 | 28,300 → 2,600 |
+
+(One latency run per workload; on this laptop these move by up to about 2x between runs, and the clock steps are 100 ns.)
+
+### What this says
+
+1. **Deep queues: about 20 times faster.** A cancel or modify in a 20,000-order level went from about 5 µs to about 0.2–0.3 µs, and no longer depends on the queue's length.
+2. **Mixed workload: the slow tail shrank most.** p99 went from 4.2 µs to 1.3 µs, because the cancels and modifies that used to search long queues no longer do. Throughput is a little better, but within the noise of this laptop.
+3. **PRINT of a big book got slower** (about 4 ms → about 12 ms, one sample each). A deque keeps a level's orders next to each other in memory; a linked list jumps around the pool, especially once freed slots are reused, so the CPU's cache helps less. PRINT is rare, so this is a good trade, but it's the classic cost of linked lists.
+4. **A few single commands still take milliseconds** (mixed `limit` max about 13 ms). The likely cause is the pool's `std::vector` growing: when it runs out of room it copies every order to a bigger array. Reserving space up front would remove that. Not done yet.
