@@ -1,0 +1,8 @@
+# Same start: orders 1 and 2 rest as sells of 10 at 10000. Order 1 is first in line.
+# Buy first, then cancel order 1: the buy fills against order 1,
+# so the cancel is rejected and order 2 stays in the book.
+SELL 1 10 10000
+SELL 2 10 10000
+BUY 3 10 10000
+CANCEL 1
+PRINT

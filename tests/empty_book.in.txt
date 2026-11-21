@@ -1,0 +1,2 @@
+# PRINT on an empty book.
+PRINT

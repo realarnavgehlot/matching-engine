@@ -1,0 +1,5 @@
+# Rule 8: the leftover rests at its own price (10200), not the last trade price.
+BUY 1 5 10000
+SELL 2 4 10100
+BUY 3 10 10200
+PRINT

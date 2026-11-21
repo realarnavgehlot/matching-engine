@@ -1,0 +1,6 @@
+# Step 3c / rules 2, 6: several levels, resting price, stops at the limit.
+SELL 1 5 10000
+SELL 2 5 10100
+SELL 3 5 10200
+BUY 4 12 10100
+PRINT

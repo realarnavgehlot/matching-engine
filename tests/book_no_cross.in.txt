@@ -1,0 +1,8 @@
+# Step 2 / rule 8: nothing crosses, so every order rests.
+# Asks print lowest first, bids highest first; same-price orders in arrival order.
+BUY 1 5 9900
+BUY 2 7 9900
+BUY 3 4 9800
+SELL 4 10 10100
+SELL 5 3 10000
+PRINT

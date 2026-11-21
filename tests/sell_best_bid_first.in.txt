@@ -1,0 +1,6 @@
+# Rules 3, 6: bids arrive out of price order; the SELL still takes the highest first.
+BUY 1 5 9800
+BUY 2 5 10000
+BUY 3 5 9900
+SELL 4 8 9800
+PRINT

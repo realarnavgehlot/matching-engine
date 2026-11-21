@@ -1,0 +1,6 @@
+# Step 5a / rule 9: unknown id, and cancelling twice.
+BUY 1 5 9900
+CANCEL 7
+CANCEL 1
+CANCEL 1
+PRINT

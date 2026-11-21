@@ -1,0 +1,5 @@
+# Step 5c / rule 9: cancel what's left of a partly filled order.
+SELL 1 10 10000
+BUY 2 4 10000
+CANCEL 1
+PRINT

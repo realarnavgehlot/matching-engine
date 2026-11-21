@@ -1,0 +1,4 @@
+[2] TRADE buy=2 sell=1 qty=4 price=10000
+[3] CANCELLED id=1
+[4] BOOK
+  (empty)

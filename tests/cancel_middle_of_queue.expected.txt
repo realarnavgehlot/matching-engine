@@ -1,0 +1,5 @@
+[4] CANCELLED id=2
+[5] TRADE buy=4 sell=1 qty=5 price=10000
+[5] TRADE buy=4 sell=3 qty=2 price=10000
+[6] BOOK
+  ASK 10000: 3x3

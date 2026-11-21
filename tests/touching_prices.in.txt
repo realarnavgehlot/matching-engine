@@ -1,0 +1,7 @@
+# Rules 2, 3: "at or below" / "at or above" include an exactly equal price.
+BUY 1 5 9999
+SELL 2 5 10000
+PRINT
+SELL 3 2 9999
+BUY 4 1 10000
+PRINT

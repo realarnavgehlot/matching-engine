@@ -1,0 +1,8 @@
+[3] BOOK
+  ASK 10000: 2x5
+  BID 9999: 1x5
+[4] TRADE buy=1 sell=3 qty=2 price=9999
+[5] TRADE buy=4 sell=2 qty=1 price=10000
+[6] BOOK
+  ASK 10000: 2x4
+  BID 9999: 1x3

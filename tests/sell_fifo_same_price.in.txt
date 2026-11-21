@@ -1,0 +1,5 @@
+# Rule 4 on the bid side: first in, first out at one price.
+BUY 1 5 10000
+BUY 2 5 10000
+SELL 3 7 10000
+PRINT

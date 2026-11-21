@@ -1,0 +1,6 @@
+# Rules 2, 6: asks arrive out of price order; the BUY still takes the lowest first.
+SELL 1 5 10200
+SELL 2 5 10000
+SELL 3 5 10100
+BUY 4 8 10200
+PRINT

@@ -1,0 +1,7 @@
+# Step 5b / rules 4, 9: cancel from the middle; the others keep their places.
+SELL 1 5 10000
+SELL 2 5 10000
+SELL 3 5 10000
+CANCEL 2
+BUY 4 7 10000
+PRINT

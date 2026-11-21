@@ -1,0 +1,7 @@
+# Orders 1 and 2 rest as sells of 10 at 10000. Order 1 is first in line.
+# Cancel order 1 first, then buy: the buy must fill against order 2.
+SELL 1 10 10000
+SELL 2 10 10000
+CANCEL 1
+BUY 3 10 10000
+PRINT

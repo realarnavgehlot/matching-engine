@@ -1,0 +1,5 @@
+[4] TRADE buy=2 sell=4 qty=5 price=10000
+[4] TRADE buy=3 sell=4 qty=3 price=9900
+[5] BOOK
+  BID 9900: 3x2
+  BID 9800: 1x5

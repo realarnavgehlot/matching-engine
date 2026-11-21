@@ -1,0 +1,8 @@
+# Sample commands. No prices cross, so nothing trades yet.
+# Prices are in paise: 9900 means Rs 99.00
+BUY 1 5 9900
+BUY 2 7 9900
+BUY 3 4 9800
+SELL 4 10 10100
+SELL 5 3 10000
+PRINT

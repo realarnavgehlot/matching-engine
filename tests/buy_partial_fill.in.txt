@@ -1,0 +1,4 @@
+# Step 3b / rule 8: the rest of the BUY joins the book.
+SELL 1 4 10000
+BUY 2 10 10000
+PRINT

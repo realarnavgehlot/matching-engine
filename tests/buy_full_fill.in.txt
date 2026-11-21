@@ -1,0 +1,4 @@
+# Step 3a / rules 5, 7: a full fill removes the resting order and its level.
+SELL 1 10 10000
+BUY 2 10 10000
+PRINT

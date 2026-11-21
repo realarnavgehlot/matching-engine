@@ -1,0 +1,5 @@
+[2] CANCEL_REJECTED id=7
+[3] CANCELLED id=1
+[4] CANCEL_REJECTED id=1
+[5] BOOK
+  (empty)

@@ -1,0 +1,4 @@
+[3] TRADE buy=3 sell=2 qty=4 price=10100
+[4] BOOK
+  BID 10200: 3x6
+  BID 10000: 1x5

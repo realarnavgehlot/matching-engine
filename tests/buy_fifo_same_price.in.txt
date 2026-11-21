@@ -1,0 +1,5 @@
+# Step 3d / rule 4: first in, first out at one price.
+SELL 1 5 10000
+SELL 2 5 10000
+BUY 3 7 10000
+PRINT
