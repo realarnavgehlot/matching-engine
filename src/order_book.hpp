@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cstddef>        // std::size_t
 #include <cstdint>        // std::int64_t, std::uint64_t, std::uint32_t
 #include <functional>     // std::greater
 #include <map>

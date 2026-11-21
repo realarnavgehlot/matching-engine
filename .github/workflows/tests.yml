@@ -1,0 +1,26 @@
+# Runs the whole test suite on Linux after every push and on every pull request.
+# A second operating system and a newer compiler than the Windows laptop the engine was built
+# on. The expected outputs are fixed, so passing here also shows that the output doesn't
+# depend on the platform.
+
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Show the compiler version
+        run: g++ --version
+
+      - name: Build and run every test, the stress checks and the differential test
+        run: python run_tests.py
