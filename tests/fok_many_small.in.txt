@@ -1,0 +1,7 @@
+# Rule 19: the FOK check adds up several small orders at one level.
+SELL 1 2 10000
+SELL 2 2 10000
+SELL 3 2 10000
+BUY 4 7 10000 FOK
+BUY 5 5 10000 FOK
+PRINT

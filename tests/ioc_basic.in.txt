@@ -1,0 +1,8 @@
+# Rule 18: an IOC trades what it can at its price or better, then drops the rest.
+# It never rests, so it can't be cancelled.
+SELL 1 5 10000
+SELL 2 5 10100
+BUY 3 8 10000 IOC
+SELL 4 3 10200 IOC
+CANCEL 3
+PRINT

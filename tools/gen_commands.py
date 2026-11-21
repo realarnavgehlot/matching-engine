@@ -35,12 +35,22 @@ BAD_EXPIRY_LINES = [
 ]
 
 
-def generate(seed, count, print_every=10_000, with_expiry=True):
+# Invalid IOC/FOK lines, used only when with_ioc_fok is on.
+BAD_TIF_LINES = [
+    "BUY 1 5 10000 ioc",
+    "SELL 1 5 10000 FOK 5",
+    "BUY 1 5 10000 IOC FOK",
+    "MARKET_SELL 1 5 FOK",
+]
+
+
+def generate(seed, count, print_every=10_000, with_expiry=True, with_ioc_fok=True):
     """Return `count` command lines, plus a final PRINT.
 
-    with_expiry adds TIME commands and GTT orders. With it off, the random numbers are drawn in
-    exactly the same order as before expiry existed, so the same seed gives the same file as in
-    v2. The benchmark workload relies on that, to stay comparable with older results.
+    with_expiry adds TIME commands and GTT orders; with_ioc_fok adds IOC and FOK orders. With
+    both off, the random numbers are drawn in exactly the same order as in v2, so the same seed
+    gives the same file. The benchmark workload relies on that, to stay comparable with older
+    results.
     """
     rng = random.Random(seed)
     lines = []
@@ -76,14 +86,24 @@ def generate(seed, count, print_every=10_000, with_expiry=True):
                 price = rng.randint(9_980, 10_010)
             else:
                 price = rng.randint(9_990, 10_020)
-            gtt = ""
-            if with_expiry and rng.random() < 0.3:
+            tif = ""
+            if with_ioc_fok:
+                kind = rng.random()
+                if kind < 0.08:
+                    tif = " IOC"
+                elif kind < 0.14:
+                    tif = " FOK"
+                elif kind < 0.15:
+                    lines.append(rng.choice(BAD_TIF_LINES))
+                    continue
+            if not tif and with_expiry and rng.random() < 0.3:
                 if rng.random() < 0.05:
-                    gtt = f" GTT {now - rng.randint(0, 5)}"  # not in the future: bad_expiry
+                    tif = f" GTT {now - rng.randint(0, 5)}"  # not in the future: bad_expiry
                 else:
-                    gtt = f" GTT {now + rng.randint(1, 400)}"
-            lines.append(f"{side} {next_id} {qty} {price}{gtt}")
-            maybe_resting.append(next_id)
+                    tif = f" GTT {now + rng.randint(1, 400)}"
+            lines.append(f"{side} {next_id} {qty} {price}{tif}")
+            if tif not in (" IOC", " FOK"):  # those never rest
+                maybe_resting.append(next_id)
             sent[next_id] = (qty, price)
             next_id += 1
         elif r < 0.70:

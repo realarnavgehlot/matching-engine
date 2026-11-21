@@ -17,7 +17,8 @@ struct Command {
     std::int64_t id = 0;                 // Limit, Market, Modify, Cancel
     std::int64_t qty = 0;                // Limit, Market, Modify
     std::int64_t price = 0;              // Limit, Modify
-    std::optional<std::int64_t> expiry;  // Limit only: the GTT time, or empty if none
+    TimeInForce tif = TimeInForce::GoodTillCancel;  // Limit only
+    std::int64_t expiry = 0;             // Limit with GTT only: the GTT time
     std::int64_t time = 0;               // Time only
     const char* reason = nullptr;        // Reject only: "unknown_command" or "bad_format"
 };

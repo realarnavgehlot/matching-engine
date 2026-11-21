@@ -449,6 +449,23 @@ Things to be able to explain about Step 13:
 - [x] Step 19: A test that catches hidden dependence on hash-table order. Build the engine a second time with a deliberately different hash function, run every test and stress file through both, and require identical output. Prove it works by planting a loop over an `unordered_map`.
 - [x] Step 20: `docs/DESIGN.md`: every design decision (prices in paise, sequence numbers, one thread, `std::map` levels, the pool and linked lists, templates, the output buffer, the reference engine, logical time) with the reason for it and what was rejected. Link it from the README.
 
+## v4 checklist: more advanced, faster, more polished
+
+Planned and built while Arnav was away, at his request. Each step is tested, committed and pushed on its own.
+
+- [x] Step 21: IOC and FOK orders. `BUY`/`SELL ... IOC` (Immediate Or Cancel: trade what you can now, drop the rest) and `... FOK` (Fill Or Kill: trade the whole quantity now, or nothing). Rules 18–20 in `docs/SPEC.md`. Tests, reference engine and generator; benchmark workload unchanged.
+- [ ] Step 22: Continuous integration. A GitHub Actions workflow runs `python run_tests.py` on Linux on every push: a second operating system and a newer compiler, which also checks that the output doesn't depend on the platform.
+- [ ] Step 23: Faster input. Read the whole command file at once instead of line by line, if measuring shows it helps.
+- [ ] Step 24: README polish: a quick example with its output, a short "how it works" section, and links to the design and benchmark documents.
+
+Things to be able to explain about Step 21:
+
+- What is the difference between an IOC order and a market order? Between IOC and FOK?
+- Why must a FOK check *before* it trades, instead of trading and then undoing the trades?
+- Why does `canFill()` count `needed` down instead of adding up a total? What is integer overflow, and why is it dangerous in C++ (undefined behaviour)?
+- A planted bug (`>` instead of `>=` in `canFill()`) passed every random stress test but failed the hand-written tests `fok_fills` and `fok_killed`. Why did the random tests miss it?
+- Why is `TimeInForce` one enum instead of separate `isIoc`, `isFok` and `hasExpiry` flags?
+
 Things to be able to explain about Step 19:
 
 - What decides the order in which a loop visits an `std::unordered_map`'s entries? Why can that order change between compilers, library versions, or just after the table grows?

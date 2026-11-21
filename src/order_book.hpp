@@ -30,6 +30,14 @@
 
 enum class Side { Buy, Sell };
 
+// What happens to the part of a limit order that can't trade at once: its "time in force".
+enum class TimeInForce {
+    GoodTillCancel,     // no keyword: rests until filled or cancelled
+    GoodTillTime,       // GTT <time>: rests, but leaves when the clock reaches its time
+    ImmediateOrCancel,  // IOC: never rests; whatever can't trade at once is dropped
+    FillOrKill,         // FOK: trades its whole quantity at once, or nothing at all
+};
+
 // The hash function for the book's hash tables (v3, Step 19). Normally std::hash. Building with
 // -DENGINE_SCRAMBLED_HASH swaps in a very different one, so every entry lands in a different
 // bucket and the tables' internal order changes completely. run_tests.py builds the engine both
@@ -88,9 +96,10 @@ public:
     // Write any buffered output to the stream now.
     void flush();
 
-    // BUY or SELL: match, then any rest joins the book. `expiry` is the GTT time, if any.
+    // BUY or SELL: match, then what happens to the rest depends on `tif` (rules 8, 14, 18, 19).
+    // `expiry` is the GTT time, used only when tif is GoodTillTime.
     void limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price,
-               std::optional<std::int64_t> expiry = std::nullopt);
+               TimeInForce tif = TimeInForce::GoodTillCancel, std::int64_t expiry = 0);
 
     // TIME: move the logical clock to `time` and expire every order whose time has come.
     void setTime(std::uint64_t seq, std::int64_t time);
@@ -137,6 +146,8 @@ private:
               std::int64_t price, std::optional<std::int64_t> expiry);
     template <typename Book>
     void unlink(Book& book, Slot slot);
+    template <typename Book>
+    bool canFill(const Book& opposite, Side side, std::int64_t qty, std::int64_t limit) const;
     template <typename Book>
     void printSide(const Book& book, const char* name) const;
 

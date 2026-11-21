@@ -22,8 +22,9 @@ DEEP = 20_000  # orders resting at one price in the deep_* workloads
 
 def mixed():
     """A realistic mix: the stress generator, 1,000,000 commands, one PRINT at the end.
-    Without expiry, so the file is the same as in v2 and the numbers stay comparable."""
-    return generate(seed=1, count=1_000_000, print_every=10**12, with_expiry=False)
+    Without expiry, IOC or FOK, so the file is the same as in v2 and the numbers stay comparable."""
+    return generate(seed=1, count=1_000_000, print_every=10**12, with_expiry=False,
+                    with_ioc_fok=False)
 
 
 def deep_cancel():

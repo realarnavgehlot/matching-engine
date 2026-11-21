@@ -9,6 +9,8 @@ It is built differently from the C++ engine on purpose, so the same bug is unlik
 - A price level is a plain set of ids. The best price is found with min() or max() every time.
 - A market order has no limit at all (None), not a very large or very small number.
 - Expiry keeps no sorted list: on each TIME it scans every resting order and sorts the ones due.
+- FOK adds up every crossing resting order (Python integers can't overflow) instead of walking
+  the levels best first and stopping early.
 
 Usage, from the matching-engine folder:
     python tools/reference_engine.py data/sample.txt
@@ -117,7 +119,8 @@ class ReferenceBook:
 
     # --- commands -------------------------------------------------------
 
-    def limit(self, seq, side, order_id, qty, price, expiry):
+    def limit(self, seq, side, order_id, qty, price, expiry, tif):
+        """tif is None (rest), "GTT" (then expiry is set), "IOC" or "FOK"."""
         if order_id <= 0:
             return self.reject(seq, "bad_id")
         if qty <= 0:
@@ -129,7 +132,23 @@ class ReferenceBook:
         if order_id in self.used_ids:
             return self.reject(seq, "duplicate_id")
         self.used_ids.add(order_id)
-        self.enter(seq, side, order_id, qty, price, expiry)
+        if tif == "IOC":
+            left = self.match(seq, side, order_id, qty, price)
+            if left > 0:
+                self.emit(seq, f"UNFILLED id={order_id} qty={left}")
+        elif tif == "FOK":
+            other = "SELL" if side == "BUY" else "BUY"
+            available = sum(
+                o.qty
+                for o in self.resting.values()
+                if o.side == other and (o.price <= price if side == "BUY" else o.price >= price)
+            )
+            if available < qty:
+                self.emit(seq, f"UNFILLED id={order_id} qty={qty}")
+            else:
+                self.match(seq, side, order_id, qty, price)
+        else:
+            self.enter(seq, side, order_id, qty, price, expiry)
 
     def set_time(self, seq, time):
         if time < self.now:
@@ -223,18 +242,20 @@ def run(lines):
         if cmd not in NUMBER_COUNT:
             book.reject(seq, "unknown_command")
             continue
-        args, expiry = words[1:], None
+        args, expiry, tif = words[1:], None, None
         if cmd in ("BUY", "SELL") and len(args) == 5 and args[3] == "GTT":
             gtt = parse_numbers(args[4:], 1)
             if gtt is None:
                 book.reject(seq, "bad_format")
                 continue
-            args, expiry = args[:3], gtt[0]
+            args, expiry, tif = args[:3], gtt[0], "GTT"
+        elif cmd in ("BUY", "SELL") and len(args) == 4 and args[3] in ("IOC", "FOK"):
+            args, tif = args[:3], args[3]
         n = parse_numbers(args, NUMBER_COUNT[cmd])
         if n is None:
             book.reject(seq, "bad_format")
         elif cmd in ("BUY", "SELL"):
-            book.limit(seq, cmd, n[0], n[1], n[2], expiry)
+            book.limit(seq, cmd, n[0], n[1], n[2], expiry, tif)
         elif cmd == "TIME":
             book.set_time(seq, n[0])
         elif cmd in ("MARKET_BUY", "MARKET_SELL"):

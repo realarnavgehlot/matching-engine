@@ -1,0 +1,4 @@
+# Rule 18: an IOC that fills completely prints no UNFILLED.
+SELL 1 5 10000
+BUY 2 5 10000 IOC
+PRINT

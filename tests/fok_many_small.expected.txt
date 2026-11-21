@@ -1,0 +1,6 @@
+[4] UNFILLED id=4 qty=7
+[5] TRADE buy=5 sell=1 qty=2 price=10000
+[5] TRADE buy=5 sell=2 qty=2 price=10000
+[5] TRADE buy=5 sell=3 qty=1 price=10000
+[6] BOOK
+  ASK 10000: 3x1

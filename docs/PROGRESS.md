@@ -2,6 +2,17 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 21 done, IOC and FOK (code written by Claude, at Arnav's request, while he was away)
+
+- Planned v4 in `docs/STEPS.md` (Steps 21–24).
+- `docs/SPEC.md` rules 18–20: `IOC` trades what it can, drops the rest (`UNFILLED`); `FOK` trades its whole quantity at once or nothing (`UNFILLED` with the full quantity). Both use up their id and never rest.
+- Engine: a `TimeInForce` enum (GoodTillCancel, GoodTillTime, ImmediateOrCancel, FillOrKill) replaces the optional GTT time in `Command` and `limit()`. `canFill()` walks the crossing orders best first and stops when there's enough (no per-level totals, which could overflow).
+- Reference engine: FOK adds up all crossing quantity instead. Generator: IOC/FOK behind `with_ioc_fok` (off for the benchmark; checksum unchanged).
+- 7 new tests (50 in total); all pass on the engine, the reference and the scrambled build; 4 stress seeds and 30 extra seeds match the reference (about 1,400 IOC/FOK orders per 20,000-command seed).
+- Planted 4 bugs: the differential test caught 3. It missed `>` instead of `>=` in `canFill()` (an exact fit), which random orders almost never hit; the hand-written tests `fok_fills` and `fok_killed` do catch it.
+- Speed: no measurable change (end-to-end median 0.834 → 0.809 s, within noise).
+- **Next:** Step 22 (CI on GitHub Actions).
+
 ## 2026-11-22: Step 20 done, v3 complete (written by Claude, at Arnav's request)
 
 - `docs/DESIGN.md`: every design decision (paise, logical time, one thread, `std::map` levels, templates, the pool and linked lists, hash tables only for lookup, the expiry map, MODIFY/market/rejection rules, parser and output buffer, the testing strategy, benchmarking method) with why, what was rejected, and the cost. Plus known limits. Linked from the README.

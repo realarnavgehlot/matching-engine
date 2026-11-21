@@ -3,12 +3,12 @@
 A limit order book and matching engine in C++, built step by step from an empty folder.
 
 - Matches orders by **price-time priority**: best price first; at the same price, the earliest order first.
-- Supports limit orders, market orders, modify, cancel and Good-Till-Time expiry, and rejects invalid input with a clear reason.
+- Supports limit, market, IOC (Immediate Or Cancel) and FOK (Fill Or Kill) orders, modify, cancel and Good-Till-Time expiry, and rejects invalid input with a clear reason.
 - Time is logical: it only moves when the input says `TIME <t>`, so expiry is as deterministic as everything else.
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v3 is done: order expiry, a test for hidden dependence on hash-table order, and [`docs/DESIGN.md`](docs/DESIGN.md), which explains every design decision and what was rejected. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v3 is done: order expiry, a test for hidden dependence on hash-table order, and [`docs/DESIGN.md`](docs/DESIGN.md), which explains every design decision and what was rejected. v2 is done. v1 made it correct, and it is tested with 50 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -17,6 +17,8 @@ BUY <id> <qty> <price>       limit buy (price in paise: 10050 is Rs 100.50)
 SELL <id> <qty> <price>      limit sell
 BUY ... GTT <time>           limit order that leaves the book when the clock reaches <time>
 SELL ... GTT <time>
+BUY ... IOC / SELL ... IOC   Immediate Or Cancel: trade what you can now, drop the rest
+BUY ... FOK / SELL ... FOK   Fill Or Kill: trade the whole quantity now, or nothing
 TIME <time>                  move the logical clock; expire orders whose time has come
 MARKET_BUY <id> <qty>        buy at any price; any rest is dropped
 MARKET_SELL <id> <qty>       sell at any price; any rest is dropped

@@ -1,0 +1,6 @@
+# Rule 19 on the sell side: bids at or above the price count, highest first.
+BUY 1 5 10000
+BUY 2 5 9900
+SELL 3 8 9900 FOK
+SELL 4 3 10000 FOK
+PRINT

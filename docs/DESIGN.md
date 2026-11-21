@@ -108,6 +108,14 @@ Every resting order lives in one `std::vector<Order>`, the **pool**, and is name
 
 What a market order can't fill is dropped and reported as `UNFILLED`. A market order with no price limit, left in the book, would match the next order at *any* price, however bad.
 
+### IOC and FOK never rest; FOK checks before it trades
+
+*(v4, Step 21.)* An IOC is a limit order whose rest is dropped instead of resting. A FOK must not trade at all unless it can fill completely, so it first checks, then trades: `canFill()` walks the orders it would trade with, best price first, and stops as soon as there is enough.
+
+**Why walk instead of keeping a total per level:** a running total of quantity per level would make the check O(levels) instead of O(orders), but the total of many huge orders at one price could overflow `std::int64_t` (undefined behaviour in C++). Counting the needed quantity *down* can't overflow. FOK orders are a small share of traffic, so the simpler, safe check wins.
+
+**One time-in-force per order:** `GTT`, `IOC` and `FOK` are alternatives, chosen with one `TimeInForce` enum, so impossible combinations ("IOC that expires at 50") can't even be written.
+
 ### Invalid input is rejected with a reason, in a fixed order of checks
 
 **Why:** every line gets a sequence number and exactly one outcome, so the output stays explainable even for bad input. The checks run in a fixed order, so a line with several problems always gets the same reason. A rejected order doesn't use up its id, because it never existed.

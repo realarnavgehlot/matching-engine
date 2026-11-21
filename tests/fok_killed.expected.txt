@@ -1,0 +1,8 @@
+[4] UNFILLED id=4 qty=11
+[5] UNFILLED id=5 qty=6
+[6] TRADE buy=6 sell=1 qty=5 price=10000
+[6] TRADE buy=6 sell=2 qty=5 price=10100
+[6] TRADE buy=6 sell=3 qty=5 price=10200
+[7] BOOK
+  (empty)
+[8] REJECTED reason=duplicate_id

@@ -62,22 +62,33 @@ bool readNumbers(const std::string_view (&words)[kMaxWords], std::size_t wordCou
     return true;
 }
 
-// BUY and SELL: three numbers, optionally followed by the word GTT and one more number.
+// BUY and SELL: three numbers, optionally followed by one time-in-force:
+// nothing, "GTT <time>", "IOC" or "FOK".
 bool readLimit(const std::string_view (&words)[kMaxWords], std::size_t wordCount,
-               std::int64_t (&numbers)[3], std::optional<std::int64_t>& expiry) {
-    expiry.reset();
-    if (wordCount == 4) {
-        return readNumbers(words, wordCount, 3, numbers);
-    }
-    if (wordCount != 6 || words[4] != "GTT") {
+               std::int64_t (&numbers)[3], TimeInForce& tif, std::int64_t& expiry) {
+    tif = TimeInForce::GoodTillCancel;
+    expiry = 0;
+    // The first four words are always the command word and three numbers.
+    // (Passing 4 as the word count tells readNumbers to look only at those.)
+    if (wordCount < 4 || !readNumbers(words, 4, 3, numbers)) {
         return false;
     }
-    std::int64_t time = 0;
-    if (!readNumbers(words, 4, 3, numbers) || !toNumber(words[5], time)) {
-        return false;  // (4 = the command word and the three numbers before "GTT")
+    if (wordCount == 4) {
+        return true;
     }
-    expiry = time;
-    return true;
+    if (wordCount == 5 && words[4] == "IOC") {
+        tif = TimeInForce::ImmediateOrCancel;
+        return true;
+    }
+    if (wordCount == 5 && words[4] == "FOK") {
+        tif = TimeInForce::FillOrKill;
+        return true;
+    }
+    if (wordCount == 6 && words[4] == "GTT" && toNumber(words[5], expiry)) {
+        tif = TimeInForce::GoodTillTime;
+        return true;
+    }
+    return false;
 }
 
 Command reject(const char* reason) {
@@ -103,7 +114,7 @@ Command parseCommand(std::string_view line) {
     Command cmd;
 
     if (word == "BUY" || word == "SELL") {
-        if (!readLimit(words, wordCount, n, cmd.expiry)) {
+        if (!readLimit(words, wordCount, n, cmd.tif, cmd.expiry)) {
             return reject("bad_format");
         }
         cmd.type = CommandType::Limit;
@@ -153,7 +164,7 @@ Command parseCommand(std::string_view line) {
 void runCommand(OrderBook& book, std::uint64_t seq, const Command& cmd) {
     switch (cmd.type) {
         case CommandType::Limit:
-            book.limit(seq, cmd.side, cmd.id, cmd.qty, cmd.price, cmd.expiry);
+            book.limit(seq, cmd.side, cmd.id, cmd.qty, cmd.price, cmd.tif, cmd.expiry);
             break;
         case CommandType::Time:
             book.setTime(seq, cmd.time);

@@ -14,6 +14,9 @@ This file defines exactly what the engine must do. The tests in `tests/` check i
 | `SELL <id> <qty> <price>` | Limit sell: sell up to `qty`, receiving at least `price`. Any rest joins the book. |
 | `BUY <id> <qty> <price> GTT <time>` | The same, but any rest that joins the book leaves it when the clock reaches `time` (Good Till Time; rules 13–17) |
 | `SELL <id> <qty> <price> GTT <time>` | The same, for a sell |
+| `BUY <id> <qty> <price> IOC` | Immediate Or Cancel: trade what can trade now at `price` or better; drop the rest, never rest (rule 18) |
+| `BUY <id> <qty> <price> FOK` | Fill Or Kill: trade the whole `qty` now at `price` or better, or nothing at all (rule 19) |
+| `SELL <id> <qty> <price> IOC` / `FOK` | The same, for a sell |
 | `TIME <time>` | Move the engine's logical clock to `time`, and expire the orders whose time has come |
 | `MARKET_BUY <id> <qty>` | Market buy: buy up to `qty` at any price. Any rest is dropped, never rests. |
 | `MARKET_SELL <id> <qty>` | Market sell: sell up to `qty` at any price. Any rest is dropped, never rests. |
@@ -26,6 +29,7 @@ This file defines exactly what the engine must do. The tests in `tests/` check i
 - `price`: a positive whole number in **paise**. ₹100.00 is `10000`; ₹100.50 is `10050`.
 - `time`: a whole number on the engine's logical clock, for example milliseconds since the market opened. The engine never reads a real clock (rule 6 in `CLAUDE.md`); time only moves when a `TIME` command says so.
 - `GTT` is a keyword, upper case, and must be followed by exactly one number. Market orders and `MODIFY` don't take it.
+- After the price, a `BUY` or `SELL` may have **one** time-in-force: nothing (rest until filled or cancelled), `GTT <time>`, `IOC` or `FOK`. These keywords are upper case; `IOC` and `FOK` take no number. Anything else is `bad_format`.
 - A number is written as digits, optionally with a leading `-`. Anything else (`10.50`, `+5`, `5x`) is not a number. Numbers must fit in a signed 64-bit integer.
 - Command words are upper case. `buy` is an unknown command.
 
@@ -84,6 +88,12 @@ A well-formed `CANCEL` or `MODIFY` for an id that is not resting is not a `REJEC
 16. An order that is fully filled or cancelled before its time never expires. One that is partly filled expires with the quantity it has left.
 17. `MODIFY` keeps an order's GTT time, whether the order keeps its place or enters again.
 
+## Immediate orders
+
+18. An **IOC** order trades exactly like a limit order (rules 2–7). Whatever is left when nothing more can trade is dropped and `UNFILLED` is printed; it never joins the book.
+19. A **FOK** order first checks whether its *whole* quantity could trade right now at its price or better. If yes, it trades exactly like a limit order, and fills completely. If no, nothing trades at all, the book is unchanged, and `UNFILLED` is printed with the full quantity.
+20. IOC and FOK orders go through the same checks as other new orders (`bad_id`, `bad_quantity`, `bad_price`, `duplicate_id`), and, once accepted, use up their id even though they never rest. A later `CANCEL` or `MODIFY` of that id is rejected, because it isn't resting.
+
 ## Output
 
 Every output line starts with `[seq]`: the sequence number of the command that caused it.
@@ -91,7 +101,7 @@ Every output line starts with `[seq]`: the sequence number of the command that c
 | Event | Output line |
 |---|---|
 | A trade | `[seq] TRADE buy=<buy id> sell=<sell id> qty=<qty> price=<price>` |
-| Market order rest dropped | `[seq] UNFILLED id=<id> qty=<qty dropped>` |
+| Market, IOC or FOK order rest dropped | `[seq] UNFILLED id=<id> qty=<qty dropped>` |
 | A resting order expired | `[seq] EXPIRED id=<id> qty=<qty it had left>` |
 | Modify accepted | `[seq] MODIFIED id=<id> qty=<new qty> price=<new price>` |
 | Modify of an id not resting | `[seq] MODIFY_REJECTED id=<id>` |
@@ -100,7 +110,7 @@ Every output line starts with `[seq]`: the sequence number of the command that c
 | Invalid command | `[seq] REJECTED reason=<reason>` |
 | `PRINT` | `[seq] BOOK`, then one line per price level (see below) |
 
-An order that rests without trading prints nothing, and so does a `TIME` that expires nothing. For a `MODIFY`, the `MODIFIED` line comes first, then any trades it causes. For a market order, the trades come first, then `UNFILLED` if anything is left.
+An order that rests without trading prints nothing, and so does a `TIME` that expires nothing. For a `MODIFY`, the `MODIFIED` line comes first, then any trades it causes. For a market or IOC order, the trades come first, then `UNFILLED` if anything is left. A FOK order prints either its trades (and no `UNFILLED`) or a single `UNFILLED` (and no trades).
 
 `PRINT` prints `[seq] BOOK`, then all ask levels, **lowest price first**, then all bid levels, **highest price first**. Each level is one line that starts with two spaces. Within a level, orders are listed in queue order as `<id>x<qty>`; for example, `2x7` is order 2 with 7 left.
 

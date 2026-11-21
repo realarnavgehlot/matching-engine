@@ -135,6 +135,29 @@ void OrderBook::unlink(Book& book, Slot slot) {
     }
 }
 
+// Rule 19: could `qty` trade right now at `limit` or better? Walks the orders it would trade
+// with, best first, and stops as soon as there is enough. (It doesn't keep a running total per
+// level: such a total could overflow std::int64_t when many huge orders rest at one price.
+// Counting `needed` down can't overflow.)
+template <typename Book>
+bool OrderBook::canFill(const Book& opposite, Side side, std::int64_t qty,
+                        std::int64_t limit) const {
+    std::int64_t needed = qty;
+    for (const auto& [levelPrice, queue] : opposite) {  // a std::map: best price first
+        bool crosses = (side == Side::Buy) ? (levelPrice <= limit) : (levelPrice >= limit);
+        if (!crosses) {
+            return false;
+        }
+        for (Slot slot = queue.head; slot != kNoSlot; slot = pool_[slot].next) {
+            if (pool_[slot].qty >= needed) {
+                return true;
+            }
+            needed -= pool_[slot].qty;
+        }
+    }
+    return false;
+}
+
 template <typename Book>
 void OrderBook::printSide(const Book& book, const char* name) const {
     for (const auto& [price, queue] : book) {
@@ -151,7 +174,7 @@ void OrderBook::printSide(const Book& book, const char* name) const {
 // ---------------------------------------------------------------------------
 
 void OrderBook::limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty,
-                      std::int64_t price, std::optional<std::int64_t> expiry) {
+                      std::int64_t price, TimeInForce tif, std::int64_t expiry) {
     // The checks run in the order docs/SPEC.md lists them.
     if (id <= 0) {
         reject(seq, "bad_id");
@@ -165,7 +188,7 @@ void OrderBook::limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_
         reject(seq, "bad_price");
         return;
     }
-    if (expiry && *expiry <= now_) {  // rule 14: the GTT time must be in the future
+    if (tif == TimeInForce::GoodTillTime && expiry <= now_) {  // rule 14: must be in the future
         reject(seq, "bad_expiry");
         return;
     }
@@ -174,7 +197,32 @@ void OrderBook::limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_
         return;
     }
     usedIds_.insert(id);
-    enter(seq, side, id, qty, price, expiry);
+
+    switch (tif) {
+        case TimeInForce::GoodTillCancel:
+            enter(seq, side, id, qty, price, std::nullopt);
+            break;
+        case TimeInForce::GoodTillTime:
+            enter(seq, side, id, qty, price, expiry);
+            break;
+        case TimeInForce::ImmediateOrCancel: {  // rule 18: trade what you can, drop the rest
+            std::int64_t left = matchIncoming(seq, side, id, qty, price);
+            if (left > 0) {
+                out_ << "[" << seq << "] UNFILLED id=" << id << " qty=" << left << "\n";
+            }
+            break;
+        }
+        case TimeInForce::FillOrKill: {  // rule 19: all now, or nothing
+            bool fillable = (side == Side::Buy) ? canFill(asks_, side, qty, price)
+                                                : canFill(bids_, side, qty, price);
+            if (!fillable) {
+                out_ << "[" << seq << "] UNFILLED id=" << id << " qty=" << qty << "\n";
+            } else {
+                matchIncoming(seq, side, id, qty, price);  // fills completely: canFill said so
+            }
+            break;
+        }
+    }
 }
 
 void OrderBook::setTime(std::uint64_t seq, std::int64_t time) {

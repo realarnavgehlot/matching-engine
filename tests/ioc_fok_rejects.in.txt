@@ -1,0 +1,14 @@
+# IOC and FOK keywords: upper case, no number after, only one time-in-force per order;
+# and the usual checks on new orders (rule 20).
+BUY 1 5 10000 ioc
+BUY 1 5 10000 IOC 5
+BUY 1 5 10000 FOK GTT 5
+BUY 1 5 10000 GTT 5 IOC
+MARKET_BUY 1 5 IOC
+MODIFY 1 5 10000 FOK
+BUY 0 5 10000 IOC
+BUY 1 0 10000 FOK
+BUY 1 5 0 IOC
+SELL 1 5 10000 FOK
+BUY 1 5 10000 IOC
+PRINT

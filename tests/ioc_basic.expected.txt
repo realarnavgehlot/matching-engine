@@ -1,0 +1,6 @@
+[3] TRADE buy=3 sell=1 qty=5 price=10000
+[3] UNFILLED id=3 qty=3
+[4] UNFILLED id=4 qty=3
+[5] CANCEL_REJECTED id=3
+[6] BOOK
+  ASK 10100: 2x5

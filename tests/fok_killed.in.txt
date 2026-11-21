@@ -1,0 +1,10 @@
+# Rule 19: if even one unit is missing within the price, nothing trades at all.
+# An accepted FOK uses up its id (rule 20).
+SELL 1 5 10000
+SELL 2 5 10100
+SELL 3 5 10200
+BUY 4 11 10100 FOK
+SELL 5 6 9900 FOK
+BUY 6 15 10200 FOK
+PRINT
+BUY 4 1 10000

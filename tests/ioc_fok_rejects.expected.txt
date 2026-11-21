@@ -1,0 +1,13 @@
+[1] REJECTED reason=bad_format
+[2] REJECTED reason=bad_format
+[3] REJECTED reason=bad_format
+[4] REJECTED reason=bad_format
+[5] REJECTED reason=bad_format
+[6] REJECTED reason=bad_format
+[7] REJECTED reason=bad_id
+[8] REJECTED reason=bad_quantity
+[9] REJECTED reason=bad_price
+[10] UNFILLED id=1 qty=5
+[11] REJECTED reason=duplicate_id
+[12] BOOK
+  (empty)
