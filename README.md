@@ -8,7 +8,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v3 (polish) is in progress: order expiry is done; next is a test for hidden dependence on hash-table order. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v3 (polish) is in progress: order expiry and the hash-order test are done; next is the design write-up. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -71,7 +71,7 @@ python tools/time_engine.py build/bench_mixed.txt
 python run_tests.py
 ```
 
-This builds the engine, runs every test in `tests/` twice, and compares the output with the expected output. If the two runs differ, the engine isn't deterministic. Each test is also run through `tools/reference_engine.py`, a second, independent implementation of the spec.
+This builds the engine, runs every test in `tests/` twice, and compares the output with the expected output. If the two runs differ, the engine isn't deterministic. Each test is also run through `tools/reference_engine.py`, a second, independent implementation of the spec, and through a second build of the engine with a deliberately different hash function (`-DENGINE_SCRAMBLED_HASH`), which must print exactly the same thing: that catches any hidden dependence on hash-table order.
 
 Then it runs four stress checks: random commands from fixed seeds (160,000 in total), each run twice, with every output line and every printed book checked, and the whole output compared line by line with the reference engine's (a differential test). Add `--no-stress` to skip them. (If `python` isn't found, try `py run_tests.py`.)
 

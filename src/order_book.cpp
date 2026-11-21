@@ -6,10 +6,16 @@
 OrderBook::OrderBook(std::ostream& out, std::size_t expectedOrders) : out_(out) {
     // Growing a hash table means moving every entry into a bigger one. With hundreds of
     // thousands of ids, one such step took over 10 ms (docs/BENCHMARKS.md, Step 17).
+#ifdef ENGINE_SCRAMBLED_HASH
+    // The scrambled test build also skips the size hint, so its tables grow step by step and
+    // pass through many different bucket counts: one more way for their order to differ.
+    (void)expectedOrders;
+#else
     if (expectedOrders > 0) {
         index_.reserve(expectedOrders);
         usedIds_.reserve(expectedOrders);
     }
+#endif
 }
 
 void OrderBook::flush() {

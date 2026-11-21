@@ -12,9 +12,15 @@ Every test runs twice. If the two outputs differ, the engine is not deterministi
 Every test is also run through tools/reference_engine.py, a second, independent
 implementation of docs/SPEC.md, which must match the expected output too.
 
+A second engine is built with -DENGINE_SCRAMBLED_HASH: its hash tables use a very different
+hash function and no size hint, so their internal order is completely different. Every test
+and stress file must give exactly the same output from both builds; if not, some code depends
+on hash-table order (rule 5 in CLAUDE.md).
+
 After the tests, the stress checks generate random commands with fixed seeds
 (tools/gen_commands.py). For each seed the engine runs twice, and the check fails if:
 - the two runs differ (not deterministic),
+- the scrambled-hash build prints anything different,
 - any line is malformed, or any printed book is unsorted or crossed, or
 - the engine's output differs from the reference engine's in any line (differential test).
 Skip them with:
@@ -29,6 +35,13 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 EXE = os.path.join(ROOT, "engine.exe" if os.name == "nt" else "engine")
+SCRAMBLED_EXE = os.path.join(
+    ROOT, "engine_scrambled.exe" if os.name == "nt" else "engine_scrambled"
+)
+HASH_ORDER_ERROR = (
+    "the scrambled-hash build printed different output, so the output depends on "
+    "hash-table order (rule 5 in CLAUDE.md)"
+)
 TIMEOUT_SECONDS = 5
 STRESS_TIMEOUT_SECONDS = 60
 # (seed, number of commands, PRINT every N commands). The small runs print the book often,
@@ -71,6 +84,13 @@ def build():
         print("The benchmark (bench/bench.cpp) failed to build. Fix the errors above.")
         sys.exit(1)
 
+    # The same engine with a scrambled hash function (see the top of this file).
+    command = ["g++", "-std=c++17", "-Wall", "-Wextra", "-O2", "-DENGINE_SCRAMBLED_HASH",
+               "-o", SCRAMBLED_EXE] + sources
+    if subprocess.run(command, cwd=ROOT).returncode != 0:
+        print("The scrambled-hash build failed. Fix the errors above.")
+        sys.exit(1)
+
 
 def normalize(text):
     """Ignore line-ending differences, spaces at the ends of lines, and blank lines at the end."""
@@ -80,11 +100,11 @@ def normalize(text):
     return lines
 
 
-def run_engine(input_path, timeout=TIMEOUT_SECONDS):
+def run_engine(input_path, timeout=TIMEOUT_SECONDS, exe=EXE):
     """Run the engine on one command file. Returns (output lines, error message or None)."""
     try:
         result = subprocess.run(
-            [EXE, input_path], capture_output=True, text=True, timeout=timeout
+            [exe, input_path], capture_output=True, text=True, timeout=timeout
         )
     except subprocess.TimeoutExpired:
         return None, f"still running after {timeout} seconds (an infinite loop?)"
@@ -216,6 +236,10 @@ def stress(seed, count, print_every):
         if error is None and second != first:
             error = "two runs gave different output, so the engine is not deterministic"
     if error is None:
+        scrambled, error = run_engine(path, STRESS_TIMEOUT_SECONDS, SCRAMBLED_EXE)
+        if error is None and scrambled != first:
+            error = HASH_ORDER_ERROR
+    if error is None:
         error = check_stress_output(first, len(commands))
     if error is None:
         error = compare_with_reference(first, reference_engine.run(commands), path)
@@ -226,7 +250,7 @@ def stress(seed, count, print_every):
     books = sum(1 for line in first if line.endswith(" BOOK"))
     print(
         f"PASS  {name}: {len(first):,} lines, {trades:,} trades, {books} books, "
-        "same as reference"
+        "same as reference and scrambled hash"
     )
     return True
 
@@ -253,6 +277,10 @@ def main():
             second, error = run_engine(input_path)
             if error is None and second != first:
                 error = "two runs gave different output, so the engine is not deterministic"
+        if error is None:
+            scrambled, error = run_engine(input_path, exe=SCRAMBLED_EXE)
+            if error is None and scrambled != first:
+                error = HASH_ORDER_ERROR
         reference = reference_engine.run_file(input_path)
         if error:
             print(f"FAIL  {name}: {error}")

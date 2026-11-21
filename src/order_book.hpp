@@ -30,6 +30,28 @@
 
 enum class Side { Buy, Sell };
 
+// The hash function for the book's hash tables (v3, Step 19). Normally std::hash. Building with
+// -DENGINE_SCRAMBLED_HASH swaps in a very different one, so every entry lands in a different
+// bucket and the tables' internal order changes completely. run_tests.py builds the engine both
+// ways and requires identical output: if it ever differs, some code depends on hash-table order,
+// which rule 5 in CLAUDE.md forbids.
+#ifdef ENGINE_SCRAMBLED_HASH
+struct IdHash {
+    std::size_t operator()(std::int64_t id) const noexcept {
+        // The "fmix64" step of MurmurHash3: mixes every bit of the id into every bit of the result.
+        std::uint64_t x = static_cast<std::uint64_t>(id);
+        x ^= x >> 33;
+        x *= 0xff51afd7ed558ccdULL;
+        x ^= x >> 33;
+        x *= 0xc4ceb9fe1a85ec53ULL;
+        x ^= x >> 33;
+        return static_cast<std::size_t>(x);
+    }
+};
+#else
+using IdHash = std::hash<std::int64_t>;
+#endif
+
 // A position in the pool. kNoSlot means "no order" (like a null pointer).
 using Slot = std::uint32_t;
 constexpr Slot kNoSlot = 0xFFFFFFFFu;
@@ -126,8 +148,8 @@ private:
     // Every resting GTT order, keyed by (GTT time, sequence number): the front expires first.
     std::map<std::pair<std::int64_t, std::uint64_t>, Slot> expiries_;
     // Hash containers are only used to look things up by key, never looped over (CLAUDE.md rule 5).
-    std::unordered_map<std::int64_t, Slot> index_;  // id of each resting order -> its slot
-    std::unordered_set<std::int64_t> usedIds_;      // every id an accepted order has used
+    std::unordered_map<std::int64_t, Slot, IdHash> index_;  // id of each resting order -> its slot
+    std::unordered_set<std::int64_t, IdHash> usedIds_;      // every id an accepted order has used
     // `mutable` so that print(), which doesn't change the book, can still write output.
     mutable Output out_;
 };

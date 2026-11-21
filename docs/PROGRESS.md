@@ -2,6 +2,14 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 19 done, hash-order test (code written by Claude, at Arnav's request)
+
+- `src/order_book.hpp`: the hash tables take an `IdHash` type. Normally `std::hash`; with `-DENGINE_SCRAMBLED_HASH` it's MurmurHash3's fmix64, and the size hint is skipped, so the tables' internal order is completely different.
+- `run_tests.py` builds `engine_scrambled.exe` too and requires identical output from both builds on all 43 tests and the 4 stress seeds. All pass.
+- Proof: planted a loop over `index_` in `setTime()`. The hand-written test `expire_partly_filled` still passed with the normal build, but the scrambled build differed; `expire_order_and_ties` caught it the other way round; the stress files caught it both ways.
+- **Next:** Step 20 (`docs/DESIGN.md`).
+- **Open question:** none.
+
 ## 2026-11-22: Step 18 done, order expiry (code written by Claude, at Arnav's request)
 
 - Planned v3 in `docs/STEPS.md`: Step 18 expiry, Step 19 hash-order test, Step 20 `docs/DESIGN.md`.

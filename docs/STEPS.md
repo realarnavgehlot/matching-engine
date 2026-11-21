@@ -446,8 +446,15 @@ Things to be able to explain about Step 13:
 ## v3 checklist: polish
 
 - [x] Step 18: Order expiry, without a clock. A `TIME <t>` command moves the engine's logical clock; `BUY`/`SELL` can end with `GTT <t>` (Good Till Time). When the clock reaches an order's time, the order leaves the book with an `EXPIRED` line. Rules 13–17 in `docs/SPEC.md`. Tests, the reference engine and the stress generator all learn expiry; the benchmark workload stays the same so the numbers stay comparable.
-- [ ] Step 19: A test that catches hidden dependence on hash-table order. Build the engine a second time with a deliberately different hash function, run every test and stress file through both, and require identical output. Prove it works by planting a loop over an `unordered_map`.
+- [x] Step 19: A test that catches hidden dependence on hash-table order. Build the engine a second time with a deliberately different hash function, run every test and stress file through both, and require identical output. Prove it works by planting a loop over an `unordered_map`.
 - [ ] Step 20: `docs/DESIGN.md`: every design decision (prices in paise, sequence numbers, one thread, `std::map` levels, the pool and linked lists, templates, the output buffer, the reference engine, logical time) with the reason for it and what was rejected. Link it from the README.
+
+Things to be able to explain about Step 19:
+
+- What decides the order in which a loop visits an `std::unordered_map`'s entries? Why can that order change between compilers, library versions, or just after the table grows?
+- What does `-DENGINE_SCRAMBLED_HASH` change, and why does the scrambled build also skip the size hint?
+- A planted bug (expiring orders by looping over `index_`) **passed** the hand-written test `expire_partly_filled` but failed the scrambled-hash check, while `expire_order_and_ties` caught it the other way round. Why does it help to have several kinds of check?
+- Why is this check still useful when the differential test against the reference engine exists?
 
 Things to be able to explain about Step 18:
 
