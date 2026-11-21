@@ -6,7 +6,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v0 works: BUY, SELL, CANCEL and PRINT, with a test for every matching rule. Next: v1 (input validation, market orders). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v0 is done: BUY, SELL, CANCEL and PRINT, with a test for every matching rule (18 tests). Next: v1 (input validation, market orders). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Build and run (Windows, PowerShell)
 

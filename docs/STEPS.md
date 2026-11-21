@@ -24,7 +24,7 @@ Three habits:
 - [x] Step 4: Match an incoming SELL
 - [x] Step 5: CANCEL
 - [x] Step 6: A test for every rule
-- [ ] Step 7: Git and GitHub
+- [x] Step 7: Git and GitHub
 
 ---
 

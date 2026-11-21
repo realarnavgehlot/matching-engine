@@ -2,6 +2,13 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 7 done, v0 is on GitHub
+
+- `git init -b main` inside `matching-engine`, so the project has its own repository (separate from the one in `C:\Users\gehlo`). First commit: `736215c`.
+- Public repository: https://github.com/realarnavgehlot/matching-engine. The remote URL includes `realarnavgehlot@` so Git signs in as that account, not arnavgehlot-bitspilani.
+- **Next:** read `src/main.cpp` until every line can be explained (questions in the entry below), then plan v1.
+- **Open question:** the commit email may belong to the arnavgehlot-bitspilani account. If commits don't show on realarnavgehlot's profile, add that email to realarnavgehlot on GitHub, or set `git config user.email` in this repository.
+
 ## 2026-11-22: Steps 2–6 done (code written by Claude, at Arnav's request)
 
 - `src/main.cpp` now has an `OrderBook` class: bids and asks as `std::map` from price to a `std::deque<Order>`, plus an `unordered_map` from id to location, used only for lookup in CANCEL.
