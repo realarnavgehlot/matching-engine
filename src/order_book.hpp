@@ -49,7 +49,12 @@ class OrderBook {
 public:
     // Every output line is written to `out`. Output is buffered: call flush() when done
     // (the destructor also flushes).
-    explicit OrderBook(std::ostream& out);
+    //
+    // `expectedOrders` is a hint: roughly how many orders will arrive. The hash tables are sized
+    // for that many up front, so they don't have to grow, and move every entry each time they
+    // do, along the way. A wrong guess only costs speed; it never changes the output, because
+    // the hash tables are never looped over (CLAUDE.md rule 5).
+    explicit OrderBook(std::ostream& out, std::size_t expectedOrders = 0);
 
     // Write any buffered output to the stream now.
     void flush();

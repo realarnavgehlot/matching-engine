@@ -3,7 +3,14 @@
 #include <algorithm>  // std::min
 #include <limits>     // std::numeric_limits
 
-OrderBook::OrderBook(std::ostream& out) : out_(out) {}
+OrderBook::OrderBook(std::ostream& out, std::size_t expectedOrders) : out_(out) {
+    // Growing a hash table means moving every entry into a bigger one. With hundreds of
+    // thousands of ids, one such step took over 10 ms (docs/BENCHMARKS.md, Step 17).
+    if (expectedOrders > 0) {
+        index_.reserve(expectedOrders);
+        usedIds_.reserve(expectedOrders);
+    }
+}
 
 void OrderBook::flush() {
     out_.flush();

@@ -402,7 +402,15 @@ Speed work changes how the book is stored, not what it prints. So the safety net
 - [x] Step 14: Benchmarks. A separate program, `bench/bench.cpp`, that loads a command file into memory, runs it through `OrderBook` with output thrown away, and reports commands per second and latency per command (median, 99th percentile, worst). The clock lives only in the benchmark, never in the engine (rule 6). Record the v1 numbers in `docs/BENCHMARKS.md` before changing anything.
 - [x] Step 15: O(1) cancel and modify. Today CANCEL and MODIFY search their level one order at a time. Store orders in a pool (a `std::vector<Order>` plus a list of free slots), link the orders in each level as a doubly linked list of slot numbers, and have the index map an id straight to its slot. Measure again.
 - [x] Step 16: Faster input and output. Step 14's numbers say they matter: parsing takes longer than the book, and the whole engine takes about 5 times as long as the book alone (see `docs/BENCHMARKS.md`). Ideas: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
-- [ ] Step 17: README section with before/after numbers, and what each change bought.
+- [x] Step 17: README section with before/after numbers, and what each change bought. Also tested the open question from Step 15 (what causes the rare multi-millisecond command): it was the hash tables rehashing, not the pool. `OrderBook` now takes an `expectedOrders` hint.
+
+Things to be able to explain about Step 17:
+
+- What happens inside an `std::unordered_map` when it grows, and why can one insert suddenly take milliseconds?
+- Why does reserving the hash tables never change the output? Which rule in `CLAUDE.md` makes that true?
+- Why guess the size from the file instead of always reserving 2 million entries?
+- Why did the old and new engines have to be run alternately to see a 7% difference?
+- Read the README's Performance section aloud. Could you explain every row to an interviewer?
 
 Things to be able to explain about Step 16:
 

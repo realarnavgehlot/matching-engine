@@ -79,7 +79,7 @@ const char* typeName(CommandType type) {
 std::int64_t runAll(const std::vector<Command>& commands, std::uint64_t& outputBytes) {
     CountingBuffer buffer;
     std::ostream out(&buffer);
-    OrderBook book(out);
+    OrderBook book(out, commands.size());  // size the hash tables once, as the engine does
     Clock::time_point start = Clock::now();
     for (std::size_t i = 0; i < commands.size(); ++i) {
         runCommand(book, i + 1, commands[i]);
@@ -178,7 +178,7 @@ int main(int argc, char* argv[]) {
     {
         CountingBuffer buffer;
         std::ostream out(&buffer);
-        OrderBook book(out);
+        OrderBook book(out, commands.size());
         for (std::size_t i = 0; i < commands.size(); ++i) {
             Clock::time_point a = Clock::now();
             runCommand(book, i + 1, commands[i]);

@@ -22,7 +22,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    OrderBook book(std::cout);
+    // Guess how many orders the file holds from its size (a command line is about 16-20 bytes),
+    // so the book can size its hash tables once. The guess affects speed only, never output.
+    file.seekg(0, std::ios::end);
+    std::streamoff bytes = file.tellg();  // -1 if the size can't be found
+    file.seekg(0, std::ios::beg);
+    std::size_t expectedOrders = (bytes > 0) ? static_cast<std::size_t>(bytes / 16) : 0;
+
+    OrderBook book(std::cout, expectedOrders);
     std::uint64_t seq = 0;  // sequence number of the current command
     std::string line;
 

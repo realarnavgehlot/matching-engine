@@ -2,6 +2,16 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 17 done, v2 complete (code written by Claude, at Arnav's request)
+
+- Tested the Step 15 open question with four throwaway builds: the rare 10+ ms commands came from the hash tables (`index_`, `usedIds_`) rehashing, not from the pool's vector growing. Reserving the pool did nothing; reserving the hash tables cut the worst limit order from 11–13 ms to about 1 ms.
+- `OrderBook(std::ostream&, std::size_t expectedOrders = 0)` reserves the hash tables; `main()` guesses from the file size (bytes / 16); `bench.exe` passes its command count. Small files pay nothing (sample.txt about 8 ms either way).
+- Alternating 12 runs each against Step 16: end-to-end median 0.652 → 0.605 s, worst 0.855 → 0.676 s. Book throughput about 4.6–5.0 million/s (best).
+- README has a Performance section: a table from v1 to Step 17 and six lessons. `docs/BENCHMARKS.md` has the Step 17 experiment.
+- Output byte-identical; 36/36 tests and the differential check pass.
+- **Next:** v3 (polish), planned in detail later. Before that: read the code and answer the questions in `docs/STEPS.md` for Steps 13–17.
+- **Open question:** none.
+
 ## 2026-11-22: Step 16 done, faster input and output (code written by Claude, at Arnav's request)
 
 - `tools/time_engine.py`: times the real `engine.exe` end to end from outside (output to a file).

@@ -114,7 +114,7 @@ The output is unchanged: all 36 tests pass, and the engine matches the reference
 1. **Deep queues: about 20 times faster.** A cancel or modify in a 20,000-order level went from about 5 µs to about 0.2–0.3 µs, and no longer depends on the queue's length.
 2. **Mixed workload: the slow tail shrank most.** p99 went from 4.2 µs to 1.3 µs, because the cancels and modifies that used to search long queues no longer do. Throughput is a little better, but within the noise of this laptop.
 3. **PRINT of a big book got slower** (about 4 ms → about 12 ms, one sample each). A deque keeps a level's orders next to each other in memory; a linked list jumps around the pool, especially once freed slots are reused, so the CPU's cache helps less. PRINT is rare, so this is a good trade, but it's the classic cost of linked lists.
-4. **A few single commands still take milliseconds** (mixed `limit` max about 13 ms). The likely cause is the pool's `std::vector` growing: when it runs out of room it copies every order to a bigger array. Reserving space up front would remove that. Not done yet.
+4. **A few single commands still take milliseconds** (mixed `limit` max about 13 ms). The likely cause is the pool's `std::vector` growing: when it runs out of room it copies every order to a bigger array. Reserving space up front would remove that. Not done yet. *(Step 17 tested this guess: it was wrong. The cause was the hash tables.)*
 
 ---
 
@@ -174,3 +174,38 @@ The book's own time also dropped, because formatting each output line is part of
 | Everything else: starting the process, reading 18 MB line by line with `std::getline`, and writing 42 MB to disk | 0.3–0.4 s |
 
 Reading the whole file at once instead of line by line might save a little more, but this is now small next to the book. Step 16 stops here.
+
+---
+
+## v2 Step 17: what caused the rare slow commands (2026-11-22)
+
+Since Step 15, a few single commands on the mixed workload took over 10 ms. Two kinds of growth could cause it: the pool's `std::vector` copying every order when it runs out of room, or the hash tables (`index_`, `usedIds_`) rehashing, which moves every entry into a bigger table. Four throwaway builds of the Step 16 book, each run 3 times on `bench_mixed.txt`:
+
+| Build | Book throughput (best) | Slowest single limit order | Slowest market order |
+|---|---|---|---|
+| No change | 3.00–3.22 million/s | 10.9–12.7 ms | 0.5–0.7 ms |
+| `pool_.reserve(2^21)` | 3.02–3.48 million/s | 11.5–15.1 ms | 0.7–1.1 ms |
+| `index_` and `usedIds_` `.reserve(2^21)` | 3.91–4.33 million/s | 0.56–1.10 ms | 0.05–0.33 ms |
+| Both | 4.16–4.54 million/s | 0.12–1.87 ms | 0.16–0.51 ms |
+
+**The cause was the hash tables, not the pool.** The Step 15 guess was wrong. `usedIds_` holds every id ever accepted, about 660,000 here, and each time it grows it moves all of them. Reserving the pool made no clear difference, so it isn't reserved.
+
+Reserving 2^21 entries always would cost small files start-up time: `data/sample.txt` took 7.6 ms → 14.3 ms (best of 30). So `OrderBook` takes an optional `expectedOrders` hint, and `main()` guesses it from the file's size (bytes / 16, since a command line is about 16–20 bytes). The benchmark passes its exact command count. A wrong guess only costs speed: the output can't change, because the hash tables are never looped over.
+
+### Result
+
+| | Step 16 | Step 17 (with the hint) |
+|---|---|---|
+| End to end, mixed, 12 runs each **alternating** old and new | best 0.568 s, median 0.652 s, worst 0.855 s | best 0.523 s, median 0.605 s, worst 0.676 s |
+| `data/sample.txt` end to end (best of 30) | 7.6 ms | 8 ms (no extra cost) |
+| Book throughput, mixed, best | 3.35–4.66 million/s | 4.60–4.96 million/s |
+| Book throughput, mixed, median | 3.22–3.62 million/s | 3.92–4.31 million/s |
+| Slowest single limit order, mixed | 11–13 ms | 1.3–2.1 ms |
+| deep_modify, best | 8.68–9.18 million/s | 10.07–10.25 million/s |
+| deep_cancel, best | 6.42–8.40 million/s | 5.40–7.26 million/s (within noise: these tables are small) |
+
+Running the two versions alternately matters: on this laptop, separate rounds of 5 runs moved by more than the difference being measured (0.64–0.73 s vs 0.63–0.80 s), but alternating 12 runs each showed a steady gain of about 7% on the median.
+
+Latency, mixed (ns), two runs: p50 200, p90 500, p99 1,000–1,100, p99.9 2,300–3,000; cancel p99 1,000–1,100; limit p99 700. The largest single numbers left are the one PRINT of a big book (6–8 ms) and a few commands of 1–2 ms, probably the operating system interrupting the program.
+
+Output byte-identical to Step 16; 36/36 tests and the differential check pass.

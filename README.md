@@ -7,7 +7,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is nearly done: benchmarks, O(1) cancel/modify and faster input/output are in; next is the write-up of what each change bought. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v2 is done. v1 made it correct: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -30,15 +30,36 @@ g++ -std=c++17 -Wall -Wextra -O2 -o engine.exe src/main.cpp src/command.cpp src/
 .\engine.exe data\sample.txt
 ```
 
-## Benchmarks
+## Performance
+
+Measured on an AMD Ryzen 5 5600H laptop (Windows 11, g++ 10.3, `-O2`). "End to end" is the real `engine.exe` on 1,000,001 seeded commands, writing 41.7 MB of output to a file. "Book" is the order book alone, timed by `bench.exe` with the input already parsed. Ranges are the best runs over several rounds; differences under about 10% are noise on this machine.
+
+| Version | What changed | End to end | Book | One cancel in a 20,000-order queue |
+|---|---|---|---|---|
+| v1 | `std::map` of `std::deque` levels; `std::istringstream` parsing; `std::ostream` output | 2.0–2.2 s | 2.3–2.4 M commands/s | about 5 µs |
+| Step 15 | Orders in a pool, each level a doubly linked list of slots, id → slot index: cancel and modify no longer search the queue | 1.4–1.9 s | 2.5–3.0 M/s | about 0.2 µs |
+| Step 16 | Parser on `std::string_view` and `std::from_chars` (9x faster per line); output buffered in 64 KB blocks, numbers with `std::to_chars` | 0.63–0.80 s | 3.4–4.7 M/s | about 0.2 µs |
+| Step 17 | Hash tables sized once from the file's size, instead of growing (and moving every entry) many times | 0.52–0.68 s | 4.6–5.0 M/s | about 0.2 µs |
+
+The v1 end-to-end time was measured with shell timing, the later ones with `tools/time_engine.py`; both are wall-clock times that include starting the program.
+
+What each step taught:
+
+1. **Measure before optimizing.** The first benchmark showed the book was only about a fifth of the engine's time. Parsing alone took longer than matching.
+2. **The right data structure removes a whole cost.** With a linked list per level and an id → slot index, a cancel no longer depends on the queue's length: about 20 times faster in a deep queue. The price: printing a big book got slower, because a linked list jumps around memory and the CPU's cache helps less.
+3. **Small allocations add up.** Building a `std::istringstream`, a `std::string` per word and a `std::vector` per line cost about 0.5 µs a line. Views and `std::from_chars` cut that to about 0.07 µs.
+4. **Common advice can be wrong for your setup.** `std::ios::sync_with_stdio(false)` made this engine *slower*: on Windows with this compiler it leaves `std::cout` with a 512-byte buffer. It was measured and left out.
+5. **Guesses about the cause can be wrong too.** Rare commands took over 10 ms. The guess was the pool's vector growing. Experiments showed it was the hash tables rehashing; reserving them cut the worst limit order from 11–13 ms to 1–2 ms.
+6. **Speed work needs a safety net.** Every change was checked with the 36 tests, a byte-for-byte comparison of the full 41.7 MB output, and a differential test against an independent reference engine. The new parser was also compared with the old one on 3,000,000 random lines.
+
+Every number, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). To reproduce:
 
 ```powershell
 python tools/gen_bench.py
 g++ -std=c++17 -Wall -Wextra -O2 -o bench.exe bench/bench.cpp src/command.cpp src/order_book.cpp
 .\bench.exe build\bench_mixed.txt
+python tools/time_engine.py build/bench_mixed.txt
 ```
-
-On an AMD Ryzen 5 5600H, the book handles about **3.5 million commands per second** on a realistic mix, and `engine.exe` runs 1,000,000 commands end to end (reading, parsing, matching, writing 42 MB of output) in about **0.7 s**, down from about 1.7 s in v1. A cancel or modify takes the same time however long its queue is: in a queue of 20,000 orders that's about **20 times faster** than v1 (about 0.2 µs instead of 5 µs). Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Run the tests
 
