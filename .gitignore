@@ -1,6 +1,10 @@
 # Build outputs
 *.exe
 *.o
-engine
 build/
 __pycache__/
+
+# Linux build outputs (no .exe), from run_tests.py
+/engine
+/engine_scrambled
+/bench_engine

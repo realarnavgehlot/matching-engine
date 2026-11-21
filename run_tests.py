@@ -78,7 +78,8 @@ def build():
     bench_sources = [os.path.join(ROOT, "bench", "bench.cpp")] + [
         s for s in sources if os.path.basename(s) != "main.cpp"
     ]
-    bench_exe = os.path.join(ROOT, "bench.exe" if os.name == "nt" else "bench")
+    # (Not plain "bench" on Linux: that's the name of the folder bench/ itself.)
+    bench_exe = os.path.join(ROOT, "bench.exe" if os.name == "nt" else "bench_engine")
     command = ["g++", "-std=c++17", "-Wall", "-Wextra", "-O2", "-o", bench_exe] + bench_sources
     if subprocess.run(command, cwd=ROOT).returncode != 0:
         print("The benchmark (bench/bench.cpp) failed to build. Fix the errors above.")

@@ -13,9 +13,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -23,4 +23,12 @@ jobs:
         run: g++ --version
 
       - name: Build and run every test, the stress checks and the differential test
-        run: python run_tests.py
+        shell: bash
+        run: |
+          set -o pipefail
+          python run_tests.py 2>&1 | tee test-output.txt
+          status=$?
+          # Show failures as annotations, so they appear on the run's summary page.
+          grep -E "^FAIL|error:|failed to build|Build failed" test-output.txt | head -10 |
+            while IFS= read -r line; do echo "::error::$line"; done
+          exit $status
