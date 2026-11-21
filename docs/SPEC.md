@@ -12,6 +12,9 @@ This file defines exactly what the engine must do. The tests in `tests/` check i
 |---|---|
 | `BUY <id> <qty> <price>` | Limit buy: buy up to `qty`, paying at most `price`. Any rest joins the book. |
 | `SELL <id> <qty> <price>` | Limit sell: sell up to `qty`, receiving at least `price`. Any rest joins the book. |
+| `BUY <id> <qty> <price> GTT <time>` | The same, but any rest that joins the book leaves it when the clock reaches `time` (Good Till Time; rules 13–17) |
+| `SELL <id> <qty> <price> GTT <time>` | The same, for a sell |
+| `TIME <time>` | Move the engine's logical clock to `time`, and expire the orders whose time has come |
 | `MARKET_BUY <id> <qty>` | Market buy: buy up to `qty` at any price. Any rest is dropped, never rests. |
 | `MARKET_SELL <id> <qty>` | Market sell: sell up to `qty` at any price. Any rest is dropped, never rests. |
 | `MODIFY <id> <qty> <price>` | Change resting order `id` to have `qty` left at `price` (rules 10–12) |
@@ -21,6 +24,8 @@ This file defines exactly what the engine must do. The tests in `tests/` check i
 - `id`: a positive whole number. Each new order (limit or market) must use an id that no earlier **accepted** order has used, even one that is already filled or cancelled.
 - `qty`: a positive whole number.
 - `price`: a positive whole number in **paise**. ₹100.00 is `10000`; ₹100.50 is `10050`.
+- `time`: a whole number on the engine's logical clock, for example milliseconds since the market opened. The engine never reads a real clock (rule 6 in `CLAUDE.md`); time only moves when a `TIME` command says so.
+- `GTT` is a keyword, upper case, and must be followed by exactly one number. Market orders and `MODIFY` don't take it.
 - A number is written as digits, optionally with a leading `-`. Anything else (`10.50`, `+5`, `5x`) is not a number. Numbers must fit in a signed 64-bit integer.
 - Command words are upper case. `buy` is an unknown command.
 
@@ -37,11 +42,13 @@ The checks run in this order, and the first one that fails gives the reason:
 | Order | Reason | When |
 |---|---|---|
 | 1 | `unknown_command` | The first word is not one of the commands above |
-| 2 | `bad_format` | Wrong number of words after the command, or one of them is not a number |
+| 2 | `bad_format` | Wrong number of words after the command, one of them is not a number, or the word before a GTT time is not exactly `GTT` |
 | 3 | `bad_id` | `id` is 0 or negative |
 | 4 | `bad_quantity` | `qty` is 0 or negative (BUY, SELL, MARKET_*, MODIFY) |
 | 5 | `bad_price` | `price` is 0 or negative (BUY, SELL, MODIFY) |
-| 6 | `duplicate_id` | A new order (BUY, SELL, MARKET_*) reuses an id an earlier accepted order used |
+| 6 | `bad_expiry` | A GTT time is not later than the clock's current time |
+| 7 | `duplicate_id` | A new order (BUY, SELL, MARKET_*) reuses an id an earlier accepted order used |
+| 8 | `time_backwards` | A `TIME` command's time is earlier than the clock's current time |
 
 A rejected order does not use up its id: a later valid order may use it.
 
@@ -69,6 +76,14 @@ A well-formed `CANCEL` or `MODIFY` for an id that is not resting is not a `REJEC
 11. If the price stays the same and the quantity does not go up, the order keeps its place in the queue and only its quantity changes.
 12. Otherwise (a new price, or more quantity) the order loses its place: it is taken out of the book and enters again, with the same id, as if it were a new limit order arriving now. It gets this command's sequence number, may trade straight away (rules 2–8), and any rest goes to the back of its level.
 
+## Time and expiry
+
+13. The engine has a logical clock. It starts at 0 and only moves when a `TIME <t>` command moves it. `TIME` with the clock's current time is allowed and changes nothing; an earlier time is rejected with `time_backwards`.
+14. A GTT order's time must be later than the clock's current time, or it is rejected with `bad_expiry`. It then trades exactly like any other limit order; only the rest that joins the book can expire. An order with no GTT never expires.
+15. When `TIME t` moves the clock, every resting order whose GTT time is at or before `t` leaves the book, and `EXPIRED` is printed for each. They go in order of GTT time, earliest first; orders with the same time go in the order they entered the book (lower sequence number first; for an order a MODIFY moved, the MODIFY's sequence number). A price level left empty is removed.
+16. An order that is fully filled or cancelled before its time never expires. One that is partly filled expires with the quantity it has left.
+17. `MODIFY` keeps an order's GTT time, whether the order keeps its place or enters again.
+
 ## Output
 
 Every output line starts with `[seq]`: the sequence number of the command that caused it.
@@ -77,6 +92,7 @@ Every output line starts with `[seq]`: the sequence number of the command that c
 |---|---|
 | A trade | `[seq] TRADE buy=<buy id> sell=<sell id> qty=<qty> price=<price>` |
 | Market order rest dropped | `[seq] UNFILLED id=<id> qty=<qty dropped>` |
+| A resting order expired | `[seq] EXPIRED id=<id> qty=<qty it had left>` |
 | Modify accepted | `[seq] MODIFIED id=<id> qty=<new qty> price=<new price>` |
 | Modify of an id not resting | `[seq] MODIFY_REJECTED id=<id>` |
 | Cancel succeeded | `[seq] CANCELLED id=<id>` |
@@ -84,7 +100,7 @@ Every output line starts with `[seq]`: the sequence number of the command that c
 | Invalid command | `[seq] REJECTED reason=<reason>` |
 | `PRINT` | `[seq] BOOK`, then one line per price level (see below) |
 
-An order that rests without trading prints nothing. For a `MODIFY`, the `MODIFIED` line comes first, then any trades it causes. For a market order, the trades come first, then `UNFILLED` if anything is left.
+An order that rests without trading prints nothing, and so does a `TIME` that expires nothing. For a `MODIFY`, the `MODIFIED` line comes first, then any trades it causes. For a market order, the trades come first, then `UNFILLED` if anything is left.
 
 `PRINT` prints `[seq] BOOK`, then all ask levels, **lowest price first**, then all bid levels, **highest price first**. Each level is one line that starts with two spaces. Within a level, orders are listed in queue order as `<id>x<qty>`; for example, `2x7` is order 2 with 7 left.
 

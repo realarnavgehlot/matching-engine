@@ -209,3 +209,16 @@ Running the two versions alternately matters: on this laptop, separate rounds of
 Latency, mixed (ns), two runs: p50 200, p90 500, p99 1,000–1,100, p99.9 2,300–3,000; cancel p99 1,000–1,100; limit p99 700. The largest single numbers left are the one PRINT of a big book (6–8 ms) and a few commands of 1–2 ms, probably the operating system interrupting the program.
 
 Output byte-identical to Step 16; 36/36 tests and the differential check pass.
+
+---
+
+## v3 Step 18: the cost of expiry (2026-11-22)
+
+Expiry adds a GTT time (`std::optional<std::int64_t>`, 16 bytes) to every order, so `Order` grew from 48 to 64 bytes, and a fill or cancel now checks whether the order has a GTT time. The benchmark workload is unchanged (generated with `with_expiry=False`, checked by checksum), so it has no GTT orders: this measures what expiry costs code that doesn't use it.
+
+| | Step 17 | Step 18 |
+|---|---|---|
+| End to end, mixed, 12 runs each alternating | best 0.660 s, median 0.717 s | best 0.686 s, median 0.743 s |
+| Book, mixed, best of 5, four paired rounds | 3.35, 4.14, 4.44, 4.03 million/s | 3.29, 4.14, 3.67, 3.40 million/s |
+
+About 4% slower end to end; the book-only pairs range from equal to about 15–20% slower, which is mostly noise. Packing the GTT time into fewer bytes might win some of it back; not done, because the gain would be near the noise.

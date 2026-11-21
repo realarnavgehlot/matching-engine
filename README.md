@@ -3,17 +3,21 @@
 A limit order book and matching engine in C++, built step by step from an empty folder.
 
 - Matches orders by **price-time priority**: best price first; at the same price, the earliest order first.
-- Supports limit orders, market orders, modify and cancel, and rejects invalid input with a clear reason.
+- Supports limit orders, market orders, modify, cancel and Good-Till-Time expiry, and rejects invalid input with a clear reason.
+- Time is logical: it only moves when the input says `TIME <t>`, so expiry is as deterministic as everything else.
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v2 is done. v1 made it correct: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v3 (polish) is in progress: order expiry is done; next is a test for hidden dependence on hash-table order. v2 is done. v1 made it correct, and it is tested with 43 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
 ```
 BUY <id> <qty> <price>       limit buy (price in paise: 10050 is Rs 100.50)
 SELL <id> <qty> <price>      limit sell
+BUY ... GTT <time>           limit order that leaves the book when the clock reaches <time>
+SELL ... GTT <time>
+TIME <time>                  move the logical clock; expire orders whose time has come
 MARKET_BUY <id> <qty>        buy at any price; any rest is dropped
 MARKET_SELL <id> <qty>       sell at any price; any rest is dropped
 MODIFY <id> <qty> <price>    change a resting order
@@ -41,7 +45,7 @@ Measured on an AMD Ryzen 5 5600H laptop (Windows 11, g++ 10.3, `-O2`). "End to e
 | Step 16 | Parser on `std::string_view` and `std::from_chars` (9x faster per line); output buffered in 64 KB blocks, numbers with `std::to_chars` | 0.63–0.80 s | 3.4–4.7 M/s | about 0.2 µs |
 | Step 17 | Hash tables sized once from the file's size, instead of growing (and moving every entry) many times | 0.52–0.68 s | 4.6–5.0 M/s | about 0.2 µs |
 
-The v1 end-to-end time was measured with shell timing, the later ones with `tools/time_engine.py`; both are wall-clock times that include starting the program.
+The v1 end-to-end time was measured with shell timing, the later ones with `tools/time_engine.py`; both are wall-clock times that include starting the program. Adding expiry in v3 cost about 4% end to end on this workload (which has no GTT orders): each order grew from 48 to 64 bytes.
 
 What each step taught:
 

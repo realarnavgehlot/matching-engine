@@ -1,0 +1,9 @@
+# Rule 15: expiring orders from the middle of a queue keeps the others' places,
+# and a level left empty is removed.
+SELL 1 5 10000
+SELL 2 5 10000 GTT 10
+SELL 3 5 10000
+SELL 4 5 10100 GTT 10
+TIME 10
+BUY 5 7 10100
+PRINT

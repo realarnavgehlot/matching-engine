@@ -1,0 +1,11 @@
+# Rules 14, 16: a filled order never expires; a partly filled one expires with what's left;
+# an incoming GTT order that fills completely never rests.
+SELL 1 10 10000 GTT 50
+BUY 2 4 10000
+BUY 3 5 10000 GTT 40
+SELL 4 5 10100 GTT 50
+SELL 5 2 10200 GTT 45
+BUY 6 2 10200
+TIME 60
+PRINT
+CANCEL 3

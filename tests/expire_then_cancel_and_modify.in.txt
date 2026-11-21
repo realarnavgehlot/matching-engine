@@ -1,0 +1,10 @@
+# Rule 16: a cancelled order never expires. An expired order is gone: CANCEL and MODIFY
+# are rejected, and its id can't be reused.
+BUY 1 5 9900 GTT 10
+BUY 2 5 9900 GTT 20
+CANCEL 2
+TIME 30
+CANCEL 1
+MODIFY 1 5 9900
+BUY 1 5 9900
+PRINT

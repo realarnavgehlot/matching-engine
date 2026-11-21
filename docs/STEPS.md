@@ -443,6 +443,17 @@ Things to be able to explain about Step 13:
 - The first version of the random generator missed a planted bug (a MODIFY with the same quantity losing its place). Why, and what was changed so it doesn't?
 - A differential test says the two implementations agree. When could they agree and both be wrong?
 
-## After v2 (planned in detail later)
+## v3 checklist: polish
 
-- **v3, polish:** order expiry as a command (never by reading the clock), a test that catches hidden dependence on hash-map order, and a README that explains the design decisions.
+- [x] Step 18: Order expiry, without a clock. A `TIME <t>` command moves the engine's logical clock; `BUY`/`SELL` can end with `GTT <t>` (Good Till Time). When the clock reaches an order's time, the order leaves the book with an `EXPIRED` line. Rules 13–17 in `docs/SPEC.md`. Tests, the reference engine and the stress generator all learn expiry; the benchmark workload stays the same so the numbers stay comparable.
+- [ ] Step 19: A test that catches hidden dependence on hash-table order. Build the engine a second time with a deliberately different hash function, run every test and stress file through both, and require identical output. Prove it works by planting a loop over an `unordered_map`.
+- [ ] Step 20: `docs/DESIGN.md`: every design decision (prices in paise, sequence numbers, one thread, `std::map` levels, the pool and linked lists, templates, the output buffer, the reference engine, logical time) with the reason for it and what was rejected. Link it from the README.
+
+Things to be able to explain about Step 18:
+
+- Why does time come from `TIME` commands in the input, and not from the computer's clock? What would break if the engine read the real time?
+- Why is `expiries_` a `std::map` keyed by (GTT time, sequence number)? Why is looping over it fine, when looping over an `unordered_map` is forbidden?
+- Why must a filled or cancelled order be removed from `expiries_`? (When this was left out on purpose, the engine hung. Explain why.)
+- Why does `setTime()` copy the id and quantity before calling `removeResting()`?
+- What is `std::optional`, and why use it for the GTT time instead of a special value like 0 or the largest `int64_t`?
+- Why does the generator have a `with_expiry` switch, and why must it draw random numbers in exactly the old order when the switch is off?

@@ -2,6 +2,17 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 18 done, order expiry (code written by Claude, at Arnav's request)
+
+- Planned v3 in `docs/STEPS.md`: Step 18 expiry, Step 19 hash-order test, Step 20 `docs/DESIGN.md`.
+- `docs/SPEC.md`: `TIME <t>` moves a logical clock (starts at 0, never backwards: `time_backwards`); `BUY`/`SELL ... GTT <t>` (must be in the future: `bad_expiry`); `EXPIRED id=.. qty=..` in order of (GTT time, sequence number); MODIFY keeps the GTT time. Rules 13–17.
+- Engine: `Command` and `Order` carry `std::optional<std::int64_t> expiry`; the book keeps `now_` and `expiries_` (a `std::map` keyed by (GTT time, sequence number)); filled, cancelled and moved orders are removed from it. Reference engine: scans and sorts on each TIME instead.
+- 7 new tests (43 in total); the stress generator adds TIME and GTT (with `with_expiry=False` the files are byte-identical to v2, checked by checksum, so the benchmark stays comparable). 43/43 tests, 4 stress seeds and 30 extra seeds match the reference; each 20,000-command seed has about 870 expiries.
+- Planted 4 expiry bugs; the differential test caught all 4. Leaving a filled order in `expiries_` made the engine hang (a stale slot corrupted the linked lists).
+- Cost: end to end about 4% slower on the old workload (12 alternating runs: median 0.717 → 0.743 s), probably because `Order` grew from 48 to 64 bytes.
+- **Next:** Step 19 (hash-order test).
+- **Open question:** packing the GTT time into fewer bytes might win back the 4%. Not worth it unless a measurement says so.
+
 ## 2026-11-22: Step 17 done, v2 complete (code written by Claude, at Arnav's request)
 
 - Tested the Step 15 open question with four throwaway builds: the rare 10+ ms commands came from the hash tables (`index_`, `usedIds_`) rehashing, not from the pool's vector growing. Reserving the pool did nothing; reserving the hash tables cut the worst limit order from 11–13 ms to about 1 ms.

@@ -69,6 +69,7 @@ std::int64_t OrderBook::match(Book& opposite, std::uint64_t seq, Side side, std:
         // Rule 7: a filled order leaves the book, and so does an empty level.
         if (resting.qty == 0) {
             index_.erase(resting.id);
+            forgetExpiry(resting);  // rule 16: a filled order never expires
             queue.head = resting.next;  // the next order in line is now first
             if (queue.head != kNoSlot) {
                 pool_[queue.head].prev = kNoSlot;
@@ -87,9 +88,12 @@ std::int64_t OrderBook::match(Book& opposite, std::uint64_t seq, Side side, std:
 // Put an order at the back of the queue at its price (rule 8).
 template <typename Book>
 void OrderBook::rest(Book& book, Side side, std::uint64_t seq, std::int64_t id, std::int64_t qty,
-                     std::int64_t price) {
+                     std::int64_t price, std::optional<std::int64_t> expiry) {
     // Allocate first: it may move the pool, so take no references into it before this.
-    Slot slot = allocate(Order{id, qty, price, seq, side, kNoSlot, kNoSlot});
+    Slot slot = allocate(Order{id, qty, price, seq, expiry, side, kNoSlot, kNoSlot});
+    if (expiry) {
+        expiries_[{*expiry, seq}] = slot;  // (GTT time, sequence number) is unique: see rule 15
+    }
     Level& queue = book[price];  // [] creates the level if it's new
     if (queue.tail == kNoSlot) {
         queue.head = slot;
@@ -141,7 +145,7 @@ void OrderBook::printSide(const Book& book, const char* name) const {
 // ---------------------------------------------------------------------------
 
 void OrderBook::limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty,
-                      std::int64_t price) {
+                      std::int64_t price, std::optional<std::int64_t> expiry) {
     // The checks run in the order docs/SPEC.md lists them.
     if (id <= 0) {
         reject(seq, "bad_id");
@@ -155,12 +159,35 @@ void OrderBook::limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_
         reject(seq, "bad_price");
         return;
     }
+    if (expiry && *expiry <= now_) {  // rule 14: the GTT time must be in the future
+        reject(seq, "bad_expiry");
+        return;
+    }
     if (usedIds_.count(id) > 0) {
         reject(seq, "duplicate_id");
         return;
     }
     usedIds_.insert(id);
-    enter(seq, side, id, qty, price);
+    enter(seq, side, id, qty, price, expiry);
+}
+
+void OrderBook::setTime(std::uint64_t seq, std::int64_t time) {
+    if (time < now_) {  // rule 13: the clock never goes back
+        reject(seq, "time_backwards");
+        return;
+    }
+    now_ = time;
+
+    // Rule 15: expiries_ is sorted by (GTT time, sequence number), so its front is always the
+    // next order to expire. Walking a std::map is fine for determinism: its order is defined by
+    // its keys. (Rule 5 in CLAUDE.md is about unordered_map, whose order is not.)
+    while (!expiries_.empty() && expiries_.begin()->first.first <= time) {
+        Slot slot = expiries_.begin()->second;
+        std::int64_t id = pool_[slot].id;
+        std::int64_t qty = pool_[slot].qty;
+        removeResting(slot);  // also removes it from expiries_
+        out_ << "[" << seq << "] EXPIRED id=" << id << " qty=" << qty << "\n";
+    }
 }
 
 void OrderBook::market(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty) {
@@ -217,10 +244,12 @@ void OrderBook::modify(std::uint64_t seq, std::int64_t id, std::int64_t qty,
         return;
     }
 
-    // Rule 12: it loses its place and enters again as if it were new.
-    Side side = order.side;  // copy it: `order` is reused once its slot is released
+    // Rule 12: it loses its place and enters again as if it were new, keeping its GTT time
+    // (rule 17). Copy what we need first: `order` is reused once its slot is released.
+    Side side = order.side;
+    std::optional<std::int64_t> expiry = order.expiry;
     removeResting(slot);
-    enter(seq, side, id, qty, price);
+    enter(seq, side, id, qty, price, expiry);
 }
 
 void OrderBook::cancel(std::uint64_t seq, std::int64_t id) {
@@ -258,15 +287,21 @@ void OrderBook::reject(std::uint64_t seq, const char* reason) {
 // ---------------------------------------------------------------------------
 
 void OrderBook::enter(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty,
-                      std::int64_t price) {
+                      std::int64_t price, std::optional<std::int64_t> expiry) {
     std::int64_t left = matchIncoming(seq, side, id, qty, price);
     if (left == 0) {
-        return;
+        return;  // fully filled: it never rests, so it can't expire (rule 14)
     }
     if (side == Side::Buy) {
-        rest(bids_, side, seq, id, left, price);
+        rest(bids_, side, seq, id, left, price, expiry);
     } else {
-        rest(asks_, side, seq, id, left, price);
+        rest(asks_, side, seq, id, left, price, expiry);
+    }
+}
+
+void OrderBook::forgetExpiry(const Order& order) {
+    if (order.expiry) {
+        expiries_.erase({*order.expiry, order.seq});
     }
 }
 
@@ -280,6 +315,7 @@ std::int64_t OrderBook::matchIncoming(std::uint64_t seq, Side side, std::int64_t
 
 void OrderBook::removeResting(Slot slot) {
     std::int64_t id = pool_[slot].id;
+    forgetExpiry(pool_[slot]);
     if (pool_[slot].side == Side::Buy) {
         unlink(bids_, slot);
     } else {

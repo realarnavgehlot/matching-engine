@@ -1,0 +1,19 @@
+[2] REJECTED reason=time_backwards
+[4] REJECTED reason=bad_expiry
+[5] REJECTED reason=bad_expiry
+[6] REJECTED reason=bad_format
+[7] REJECTED reason=bad_format
+[8] REJECTED reason=bad_format
+[9] REJECTED reason=bad_format
+[10] REJECTED reason=bad_format
+[11] REJECTED reason=bad_format
+[12] REJECTED reason=bad_format
+[13] REJECTED reason=bad_format
+[14] REJECTED reason=bad_format
+[15] REJECTED reason=time_backwards
+[16] REJECTED reason=bad_id
+[17] REJECTED reason=bad_price
+[19] BOOK
+  BID 9900: 1x5
+[20] REJECTED reason=bad_expiry
+[21] REJECTED reason=duplicate_id

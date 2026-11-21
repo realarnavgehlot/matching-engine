@@ -24,17 +24,47 @@ BAD_LINES = [
 ]
 
 
-def generate(seed, count, print_every=10_000):
-    """Return `count` command lines, plus a final PRINT."""
+# Invalid lines about time and expiry, used only when with_expiry is on.
+BAD_EXPIRY_LINES = [
+    "TIME",
+    "TIME x",
+    "BUY 1 5 10000 GTT",
+    "BUY 1 5 10000 gtt 5",
+    "SELL 1 5 10000 GTT 5 6",
+    "MARKET_BUY 1 5 GTT 5",
+]
+
+
+def generate(seed, count, print_every=10_000, with_expiry=True):
+    """Return `count` command lines, plus a final PRINT.
+
+    with_expiry adds TIME commands and GTT orders. With it off, the random numbers are drawn in
+    exactly the same order as before expiry existed, so the same seed gives the same file as in
+    v2. The benchmark workload relies on that, to stay comparable with older results.
+    """
     rng = random.Random(seed)
     lines = []
     next_id = 1
     maybe_resting = []  # ids of limit orders that might still rest (the engine decides)
     sent = {}  # id -> (qty, price) last sent for that order, to aim MODIFY at the rule 11/12 edges
+    now = 0  # the logical clock, as the engine will see it
 
     for i in range(1, count + 1):
         if i % print_every == 0:
             lines.append("PRINT")
+            continue
+
+        if with_expiry and rng.random() < 0.02:
+            t = rng.random()
+            if t < 0.85:
+                now += rng.randint(1, 60)
+                lines.append(f"TIME {now}")
+            elif t < 0.90:
+                lines.append(f"TIME {now}")  # the same time again: allowed, changes nothing
+            elif t < 0.95:
+                lines.append(f"TIME {now - rng.randint(1, 10)}")  # must be time_backwards
+            else:
+                lines.append(rng.choice(BAD_EXPIRY_LINES))
             continue
 
         r = rng.random()
@@ -46,7 +76,13 @@ def generate(seed, count, print_every=10_000):
                 price = rng.randint(9_980, 10_010)
             else:
                 price = rng.randint(9_990, 10_020)
-            lines.append(f"{side} {next_id} {qty} {price}")
+            gtt = ""
+            if with_expiry and rng.random() < 0.3:
+                if rng.random() < 0.05:
+                    gtt = f" GTT {now - rng.randint(0, 5)}"  # not in the future: bad_expiry
+                else:
+                    gtt = f" GTT {now + rng.randint(1, 400)}"
+            lines.append(f"{side} {next_id} {qty} {price}{gtt}")
             maybe_resting.append(next_id)
             sent[next_id] = (qty, price)
             next_id += 1

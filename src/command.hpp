@@ -4,19 +4,22 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string_view>
 
 #include "order_book.hpp"
 
-enum class CommandType { Limit, Market, Modify, Cancel, Print, Reject };
+enum class CommandType { Limit, Market, Modify, Cancel, Print, Time, Reject };
 
 struct Command {
     CommandType type = CommandType::Reject;
-    Side side = Side::Buy;         // Limit and Market only
-    std::int64_t id = 0;           // Limit, Market, Modify, Cancel
-    std::int64_t qty = 0;          // Limit, Market, Modify
-    std::int64_t price = 0;        // Limit, Modify
-    const char* reason = nullptr;  // Reject only: "unknown_command" or "bad_format"
+    Side side = Side::Buy;               // Limit and Market only
+    std::int64_t id = 0;                 // Limit, Market, Modify, Cancel
+    std::int64_t qty = 0;                // Limit, Market, Modify
+    std::int64_t price = 0;              // Limit, Modify
+    std::optional<std::int64_t> expiry;  // Limit only: the GTT time, or empty if none
+    std::int64_t time = 0;               // Time only
+    const char* reason = nullptr;        // Reject only: "unknown_command" or "bad_format"
 };
 
 // False for lines that are not commands: empty, only spaces or tabs, or a comment.

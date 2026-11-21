@@ -1,0 +1,5 @@
+[5] EXPIRED id=4 qty=5
+[5] EXPIRED id=2 qty=5
+[5] EXPIRED id=3 qty=5
+[6] BOOK
+  BID 9900: 1x5

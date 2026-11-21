@@ -116,11 +116,13 @@ def show_difference(expected, actual):
 LINE_PATTERNS = [
     re.compile(r"\[(\d+)\] TRADE buy=(\d+) sell=(\d+) qty=(\d+) price=(\d+)"),
     re.compile(r"\[(\d+)\] UNFILLED id=\d+ qty=[1-9]\d*"),
+    re.compile(r"\[(\d+)\] EXPIRED id=\d+ qty=[1-9]\d*"),
     re.compile(r"\[(\d+)\] MODIFIED id=\d+ qty=[1-9]\d* price=[1-9]\d*"),
     re.compile(r"\[(\d+)\] (MODIFY_REJECTED|CANCELLED|CANCEL_REJECTED) id=-?\d+"),
     re.compile(
         r"\[(\d+)\] REJECTED reason="
-        r"(unknown_command|bad_format|bad_id|bad_quantity|bad_price|duplicate_id)"
+        r"(unknown_command|bad_format|bad_id|bad_quantity|bad_price|bad_expiry|duplicate_id"
+        r"|time_backwards)"
     ),
     re.compile(r"\[(\d+)\] BOOK"),
 ]

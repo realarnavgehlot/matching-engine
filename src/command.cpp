@@ -11,8 +11,9 @@ bool isSpace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
 }
 
-// A command word and at most 3 numbers. One more slot lets us see "too many words".
-constexpr std::size_t kMaxWords = 5;
+// The longest command is "BUY id qty price GTT time": 6 words. One more slot lets us see
+// "too many words".
+constexpr std::size_t kMaxWords = 7;
 
 // Split `line` into words without copying anything: each word is a std::string_view that points
 // into `line`. Keeps the first kMaxWords words and returns how many words there really are.
@@ -61,6 +62,24 @@ bool readNumbers(const std::string_view (&words)[kMaxWords], std::size_t wordCou
     return true;
 }
 
+// BUY and SELL: three numbers, optionally followed by the word GTT and one more number.
+bool readLimit(const std::string_view (&words)[kMaxWords], std::size_t wordCount,
+               std::int64_t (&numbers)[3], std::optional<std::int64_t>& expiry) {
+    expiry.reset();
+    if (wordCount == 4) {
+        return readNumbers(words, wordCount, 3, numbers);
+    }
+    if (wordCount != 6 || words[4] != "GTT") {
+        return false;
+    }
+    std::int64_t time = 0;
+    if (!readNumbers(words, 4, 3, numbers) || !toNumber(words[5], time)) {
+        return false;  // (4 = the command word and the three numbers before "GTT")
+    }
+    expiry = time;
+    return true;
+}
+
 Command reject(const char* reason) {
     Command cmd;
     cmd.type = CommandType::Reject;
@@ -84,7 +103,7 @@ Command parseCommand(std::string_view line) {
     Command cmd;
 
     if (word == "BUY" || word == "SELL") {
-        if (!readNumbers(words, wordCount, 3, n)) {
+        if (!readLimit(words, wordCount, n, cmd.expiry)) {
             return reject("bad_format");
         }
         cmd.type = CommandType::Limit;
@@ -92,6 +111,12 @@ Command parseCommand(std::string_view line) {
         cmd.id = n[0];
         cmd.qty = n[1];
         cmd.price = n[2];
+    } else if (word == "TIME") {
+        if (!readNumbers(words, wordCount, 1, n)) {
+            return reject("bad_format");
+        }
+        cmd.type = CommandType::Time;
+        cmd.time = n[0];
     } else if (word == "MARKET_BUY" || word == "MARKET_SELL") {
         if (!readNumbers(words, wordCount, 2, n)) {
             return reject("bad_format");
@@ -128,7 +153,10 @@ Command parseCommand(std::string_view line) {
 void runCommand(OrderBook& book, std::uint64_t seq, const Command& cmd) {
     switch (cmd.type) {
         case CommandType::Limit:
-            book.limit(seq, cmd.side, cmd.id, cmd.qty, cmd.price);
+            book.limit(seq, cmd.side, cmd.id, cmd.qty, cmd.price, cmd.expiry);
+            break;
+        case CommandType::Time:
+            book.setTime(seq, cmd.time);
             break;
         case CommandType::Market:
             book.market(seq, cmd.side, cmd.id, cmd.qty);

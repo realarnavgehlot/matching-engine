@@ -8,6 +8,7 @@ It is built differently from the C++ engine on purpose, so the same bug is unlik
   command that last put it in the book. The front of a level is the order with the lowest priority.
 - A price level is a plain set of ids. The best price is found with min() or max() every time.
 - A market order has no limit at all (None), not a very large or very small number.
+- Expiry keeps no sorted list: on each TIME it scans every resting order and sorts the ones due.
 
 Usage, from the matching-engine folder:
     python tools/reference_engine.py data/sample.txt
@@ -29,18 +30,20 @@ NUMBER_COUNT = {
     "MODIFY": 3,
     "CANCEL": 1,
     "PRINT": 0,
+    "TIME": 1,
 }
 
 
 class Order:
-    __slots__ = ("id", "side", "price", "qty", "priority")
+    __slots__ = ("id", "side", "price", "qty", "priority", "expiry")
 
-    def __init__(self, order_id, side, price, qty, priority):
+    def __init__(self, order_id, side, price, qty, priority, expiry):
         self.id = order_id
         self.side = side  # "BUY" or "SELL"
         self.price = price
         self.qty = qty
         self.priority = priority
+        self.expiry = expiry  # GTT time, or None
 
 
 class ReferenceBook:
@@ -49,6 +52,7 @@ class ReferenceBook:
         self.resting = {}  # id -> Order, for every order in the book
         self.levels = {"BUY": {}, "SELL": {}}  # side -> price -> set of ids at that price
         self.used_ids = set()  # every id an accepted order has used
+        self.now = 0  # the logical clock
 
     # --- output ---------------------------------------------------------
 
@@ -106,24 +110,36 @@ class ReferenceBook:
                 self.remove(resting)
         return qty
 
-    def enter(self, seq, side, order_id, qty, price):
+    def enter(self, seq, side, order_id, qty, price, expiry):
         left = self.match(seq, side, order_id, qty, price)
         if left > 0:
-            self.add(Order(order_id, side, price, left, priority=seq))
+            self.add(Order(order_id, side, price, left, priority=seq, expiry=expiry))
 
     # --- commands -------------------------------------------------------
 
-    def limit(self, seq, side, order_id, qty, price):
+    def limit(self, seq, side, order_id, qty, price, expiry):
         if order_id <= 0:
             return self.reject(seq, "bad_id")
         if qty <= 0:
             return self.reject(seq, "bad_quantity")
         if price <= 0:
             return self.reject(seq, "bad_price")
+        if expiry is not None and expiry <= self.now:
+            return self.reject(seq, "bad_expiry")
         if order_id in self.used_ids:
             return self.reject(seq, "duplicate_id")
         self.used_ids.add(order_id)
-        self.enter(seq, side, order_id, qty, price)
+        self.enter(seq, side, order_id, qty, price, expiry)
+
+    def set_time(self, seq, time):
+        if time < self.now:
+            return self.reject(seq, "time_backwards")
+        self.now = time
+        due = [o for o in self.resting.values() if o.expiry is not None and o.expiry <= time]
+        due.sort(key=lambda order: (order.expiry, order.priority))
+        for order in due:
+            self.remove(order)
+            self.emit(seq, f"EXPIRED id={order.id} qty={order.qty}")
 
     def market(self, seq, side, order_id, qty):
         if order_id <= 0:
@@ -151,8 +167,8 @@ class ReferenceBook:
         if price == order.price and qty <= order.qty:
             order.qty = qty  # rule 11: keeps its priority
             return
-        self.remove(order)  # rule 12: enters again with this command's priority
-        self.enter(seq, order.side, order_id, qty, price)
+        self.remove(order)  # rule 12: enters again with this command's priority,
+        self.enter(seq, order.side, order_id, qty, price, order.expiry)  # rule 17: same expiry
 
     def cancel(self, seq, order_id):
         if order_id <= 0:
@@ -207,11 +223,20 @@ def run(lines):
         if cmd not in NUMBER_COUNT:
             book.reject(seq, "unknown_command")
             continue
-        n = parse_numbers(words[1:], NUMBER_COUNT[cmd])
+        args, expiry = words[1:], None
+        if cmd in ("BUY", "SELL") and len(args) == 5 and args[3] == "GTT":
+            gtt = parse_numbers(args[4:], 1)
+            if gtt is None:
+                book.reject(seq, "bad_format")
+                continue
+            args, expiry = args[:3], gtt[0]
+        n = parse_numbers(args, NUMBER_COUNT[cmd])
         if n is None:
             book.reject(seq, "bad_format")
         elif cmd in ("BUY", "SELL"):
-            book.limit(seq, cmd, n[0], n[1], n[2])
+            book.limit(seq, cmd, n[0], n[1], n[2], expiry)
+        elif cmd == "TIME":
+            book.set_time(seq, n[0])
         elif cmd in ("MARKET_BUY", "MARKET_SELL"):
             book.market(seq, cmd[len("MARKET_"):], n[0], n[1])
         elif cmd == "MODIFY":

@@ -1,0 +1,9 @@
+[2] TRADE buy=2 sell=1 qty=4 price=10000
+[3] TRADE buy=3 sell=1 qty=5 price=10000
+[6] TRADE buy=6 sell=1 qty=1 price=10000
+[6] TRADE buy=6 sell=4 qty=1 price=10100
+[7] EXPIRED id=5 qty=2
+[7] EXPIRED id=4 qty=4
+[8] BOOK
+  (empty)
+[9] CANCEL_REJECTED id=3

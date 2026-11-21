@@ -1,0 +1,7 @@
+[4] EXPIRED id=3 qty=5
+[5] BOOK
+  ASK 10000: 1x5
+  ASK 10100: 2x5
+[6] EXPIRED id=1 qty=5
+[7] BOOK
+  ASK 10100: 2x5

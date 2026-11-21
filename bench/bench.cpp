@@ -70,6 +70,7 @@ const char* typeName(CommandType type) {
         case CommandType::Modify: return "modify";
         case CommandType::Cancel: return "cancel";
         case CommandType::Print: return "print";
+        case CommandType::Time: return "time";
         case CommandType::Reject: return "reject";
     }
     return "?";
@@ -173,7 +174,8 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<std::int64_t> all;
-    std::vector<std::vector<std::int64_t>> byType(6);
+    constexpr int kTypes = static_cast<int>(CommandType::Reject) + 1;  // Reject is the last type
+    std::vector<std::vector<std::int64_t>> byType(kTypes);
     all.reserve(commands.size());
     {
         CountingBuffer buffer;
@@ -195,7 +197,7 @@ int main(int argc, char* argv[]) {
               << "count" << std::setw(10) << "p50" << std::setw(10) << "p90" << std::setw(10)
               << "p99" << std::setw(10) << "p99.9" << std::setw(12) << "max" << "\n";
     printRow("all", all);
-    for (int t = 0; t < 6; ++t) {
+    for (int t = 0; t < kTypes; ++t) {
         if (!byType[t].empty()) {
             printRow(typeName(static_cast<CommandType>(t)), byType[t]);
         }

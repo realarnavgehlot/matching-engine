@@ -1,0 +1,8 @@
+[3] MODIFIED id=1 qty=3 price=10000
+[4] MODIFIED id=1 qty=3 price=10100
+[6] BOOK
+  ASK 10000: 2x5
+  ASK 10100: 1x3
+[7] EXPIRED id=1 qty=3
+[8] BOOK
+  ASK 10000: 2x5

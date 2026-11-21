@@ -9,15 +9,21 @@
 // - The index maps an order id straight to its slot.
 // So CANCEL and MODIFY can unlink any order in a few steps, however long its queue is.
 // Slots freed by filled or cancelled orders go on a free list and are reused.
+//
+// Expiry (v3, Step 18): the engine's clock is logical; only TIME commands move it. Resting GTT
+// orders are also kept in `expiries_`, a std::map sorted by (GTT time, sequence number), so the
+// order to expire next is always at its front.
 
 #pragma once
 
 #include <cstdint>        // std::int64_t, std::uint64_t, std::uint32_t
 #include <functional>     // std::greater
 #include <map>
+#include <optional>
 #include <ostream>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>        // std::pair
 #include <vector>
 
 #include "output.hpp"
@@ -33,7 +39,8 @@ struct Order {
     std::int64_t id;
     std::int64_t qty;    // quantity still left
     std::int64_t price;
-    std::uint64_t seq;   // sequence number of the command that placed it (for debugging)
+    std::uint64_t seq;   // sequence number of the command that put it in the book
+    std::optional<std::int64_t> expiry;  // its GTT time, or empty if it never expires
     Side side;
     Slot prev;           // the order in front of this one at the same price, or kNoSlot
     Slot next;           // the order behind it, or kNoSlot
@@ -59,8 +66,12 @@ public:
     // Write any buffered output to the stream now.
     void flush();
 
-    // BUY or SELL: match, then any rest joins the book.
-    void limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price);
+    // BUY or SELL: match, then any rest joins the book. `expiry` is the GTT time, if any.
+    void limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price,
+               std::optional<std::int64_t> expiry = std::nullopt);
+
+    // TIME: move the logical clock to `time` and expire every order whose time has come.
+    void setTime(std::uint64_t seq, std::int64_t time);
 
     // MARKET_BUY or MARKET_SELL: match at any price, then drop any rest.
     void market(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty);
@@ -77,7 +88,11 @@ private:
     using AskBook = std::map<std::int64_t, Level>;                              // lowest first
 
     // Match an incoming order, then rest whatever is left (used by limit and modify).
-    void enter(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price);
+    void enter(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price,
+               std::optional<std::int64_t> expiry);
+
+    // Remove a resting order from `expiries_`, if it has a GTT time.
+    void forgetExpiry(const Order& order);
 
     // Match against the other side. Returns the quantity still left.
     std::int64_t matchIncoming(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty,
@@ -97,7 +112,7 @@ private:
                        std::int64_t qty, std::int64_t limit);
     template <typename Book>
     void rest(Book& book, Side side, std::uint64_t seq, std::int64_t id, std::int64_t qty,
-              std::int64_t price);
+              std::int64_t price, std::optional<std::int64_t> expiry);
     template <typename Book>
     void unlink(Book& book, Slot slot);
     template <typename Book>
@@ -107,6 +122,9 @@ private:
     AskBook asks_;
     std::vector<Order> pool_;  // every order, resting or freed; named by slot number
     std::vector<Slot> free_;   // slots of freed orders, ready to reuse
+    std::int64_t now_ = 0;     // the logical clock (rule 13)
+    // Every resting GTT order, keyed by (GTT time, sequence number): the front expires first.
+    std::map<std::pair<std::int64_t, std::uint64_t>, Slot> expiries_;
     // Hash containers are only used to look things up by key, never looped over (CLAUDE.md rule 5).
     std::unordered_map<std::int64_t, Slot> index_;  // id of each resting order -> its slot
     std::unordered_set<std::int64_t> usedIds_;      // every id an accepted order has used

@@ -1,0 +1,8 @@
+# Rule 15: one TIME can expire many orders: earliest GTT time first,
+# and the same time in the order they entered the book.
+BUY 1 5 9900 GTT 30
+BUY 2 5 9800 GTT 20
+BUY 3 5 9900 GTT 20
+SELL 4 5 10100 GTT 10
+TIME 25
+PRINT

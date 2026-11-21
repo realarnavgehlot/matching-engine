@@ -1,0 +1,7 @@
+[3] CANCELLED id=2
+[4] EXPIRED id=1 qty=5
+[5] CANCEL_REJECTED id=1
+[6] MODIFY_REJECTED id=1
+[7] REJECTED reason=duplicate_id
+[8] BOOK
+  (empty)
