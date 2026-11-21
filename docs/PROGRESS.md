@@ -2,6 +2,15 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Steps 22 and 23 done, CI on Linux and faster input (by Claude, while Arnav was away)
+
+- Step 22: `.github/workflows/tests.yml` runs `python run_tests.py` on ubuntu-latest (newer g++) on every push and pull request. It now passes.
+  - The first run failed: on Linux the benchmark binary was named `bench`, which clashes with the `bench/` folder. Renamed to `bench_engine` on Linux (`bench.exe` on Windows is unchanged); Linux build outputs added to `.gitignore`.
+  - The second run failed in the workflow itself: under GitHub's `bash -e`, a `grep` that found nothing to report ended the step with an error. Fixed; failing lines are now shown as annotations on the run's page (the full log needs the owner's login).
+  - `order_book.hpp` includes `<cstddef>` for `std::size_t` instead of relying on another header.
+- Step 23: `main()` reads the whole file at once (binary mode) and walks it with `std::string_view` lines instead of `std::getline`. Output byte-identical (including a `\r\n` file with no final newline); end to end about 26% faster (12 alternating runs: median 0.503 → 0.372 s).
+- **Next:** Step 24 (README polish).
+
 ## 2026-11-22: Step 21 done, IOC and FOK (code written by Claude, at Arnav's request, while he was away)
 
 - Planned v4 in `docs/STEPS.md` (Steps 21–24).

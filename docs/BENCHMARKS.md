@@ -222,3 +222,24 @@ Expiry adds a GTT time (`std::optional<std::int64_t>`, 16 bytes) to every order,
 | Book, mixed, best of 5, four paired rounds | 3.35, 4.14, 4.44, 4.03 million/s | 3.29, 4.14, 3.67, 3.40 million/s |
 
 About 4% slower end to end; the book-only pairs range from equal to about 15–20% slower, which is mostly noise. Packing the GTT time into fewer bytes might win some of it back; not done, because the gain would be near the noise.
+
+---
+
+## v4 Step 21: IOC and FOK (2026-11-22)
+
+No measurable change on the benchmark workload (which has no IOC or FOK orders): end to end, 10 alternating runs each, median 0.834 s before and 0.809 s after, within noise.
+
+---
+
+## v4 Step 23: read the whole file at once (2026-11-22)
+
+`main()` used `std::getline`, which copies every line into a `std::string`. It now reads the whole file into one `std::string` with a single `read()`, and walks it with `std::string_view`s, one per line, without copying. The file is opened in binary mode, so Windows `\r\n` endings keep their `\r`; the parser already treats `\r` as a space, so nothing changes.
+
+Output byte-identical to before on `bench_mixed.txt`, `stress_seed2.txt`, `data/sample.txt`, and a Windows-style file with `\r\n` endings and no newline after the last line. All 50 tests and the differential check pass.
+
+| End to end, mixed, 12 runs each alternating | Best | Median |
+|---|---|---|
+| `std::getline` (before) | 0.499 s | 0.503 s |
+| Whole file at once (Step 23) | 0.363 s | 0.372 s |
+
+**About 26% faster end to end.** (The machine was quieter during these runs than during earlier rounds, so both numbers are lower than in the tables above; only the side-by-side comparison counts.) Per line, `std::getline` cost about 0.13 µs more than finding the next `'\n'` in memory: the copy into a `std::string`, and the stream machinery around each call.

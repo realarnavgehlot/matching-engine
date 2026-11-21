@@ -454,9 +454,17 @@ Things to be able to explain about Step 13:
 Planned and built while Arnav was away, at his request. Each step is tested, committed and pushed on its own.
 
 - [x] Step 21: IOC and FOK orders. `BUY`/`SELL ... IOC` (Immediate Or Cancel: trade what you can now, drop the rest) and `... FOK` (Fill Or Kill: trade the whole quantity now, or nothing). Rules 18–20 in `docs/SPEC.md`. Tests, reference engine and generator; benchmark workload unchanged.
-- [ ] Step 22: Continuous integration. A GitHub Actions workflow runs `python run_tests.py` on Linux on every push: a second operating system and a newer compiler, which also checks that the output doesn't depend on the platform.
-- [ ] Step 23: Faster input. Read the whole command file at once instead of line by line, if measuring shows it helps.
+- [x] Step 22: Continuous integration. A GitHub Actions workflow runs `python run_tests.py` on Linux on every push: a second operating system and a newer compiler, which also checks that the output doesn't depend on the platform.
+- [x] Step 23: Faster input. Read the whole command file at once instead of line by line, if measuring shows it helps.
 - [ ] Step 24: README polish: a quick example with its output, a short "how it works" section, and links to the design and benchmark documents.
+
+Things to be able to explain about Steps 22 and 23:
+
+- What does the GitHub Actions workflow do on every push? Why is running on Linux a useful extra check, even though every test already passes on Windows?
+- The first Linux run failed although everything passed on Windows. Why? (Hint: on Linux, programs have no `.exe`, and the project has a folder called `bench/`.)
+- Why is reading the whole file at once faster than `std::getline`? What does it cost?
+- Why open the file in binary mode? What happens to a Windows `\r\n` line ending, and why doesn't it change the output?
+- The new line loop must give exactly the lines `std::getline` gave. What about a file whose last line has no `'\n'`? An empty line? How was that checked?
 
 Things to be able to explain about Step 21:
 

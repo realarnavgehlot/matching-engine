@@ -130,6 +130,14 @@ What a market order can't fill is dropped and reported as `UNFILLED`. A market o
 
 *(v2, Step 16.)* Each line is split into views that point into the line, without copying, and each number goes straight to `std::from_chars`. The v1 parser built a `std::istringstream`, a `std::string` per word and a `std::vector` per line: about 9 times slower. The new parser was checked against the old one on 3,000,000 random lines before it replaced it.
 
+### The whole file is read at once
+
+*(v4, Step 23.)* `main()` reads the command file into memory with one `read()`, then walks it one line at a time with `std::string_view`s into that memory. Reading line by line with `std::getline` copied every line into a `std::string` and went through the stream machinery for each one: about 26% slower end to end.
+
+**Cost:** the whole file sits in memory (18 MB for a million commands). A live engine reads from a network stream, not a file, so it would parse messages as they arrive instead.
+
+**Binary mode:** the file is read without line-ending conversion, so the bytes the engine sees are the same on Windows and Linux. A Windows file's `\r` is treated as a space by the parser.
+
 ### Our own output buffer
 
 *(v2, Step 16.)* `Output` collects text in a 64 KB buffer, formats numbers with `std::to_chars`, and hands the stream one big block at a time. `std::ostream`'s `<<` formats every number through the locale machinery and passes each small piece on its own.
