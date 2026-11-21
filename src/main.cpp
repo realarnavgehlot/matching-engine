@@ -34,5 +34,6 @@ int main(int argc, char* argv[]) {
         runCommand(book, seq, parseCommand(line));
     }
 
+    book.flush();  // write out whatever is still in the output buffer
     return 0;
 }

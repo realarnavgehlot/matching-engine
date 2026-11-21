@@ -2,6 +2,16 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 16 done, faster input and output (code written by Claude, at Arnav's request)
+
+- `tools/time_engine.py`: times the real `engine.exe` end to end from outside (output to a file).
+- Tried `std::ios::sync_with_stdio(false)` first: it made the engine **slower** (512-byte buffer on Windows with this compiler). Not kept.
+- New parser in `src/command.cpp`: splits each line into `std::string_view` words and uses `std::from_chars`; no `std::istringstream`, `std::string` or `std::vector` per line. 520–710 → 64–72 ns per line. Compared with the old parser on 3,000,000 random lines: 0 differences (and a planted difference was caught).
+- `src/output.hpp`: an `Output` class that buffers 64 KB, formats numbers with `std::to_chars`, and writes in big blocks. `OrderBook` now writes through it; `main()` and the benchmark call `book.flush()`.
+- End to end on 1,000,001 commands: about 1.4–1.9 s → 0.63–0.80 s (about 2.5x). Book throughput: about 2.5 → 3.2–4.7 million commands per second. Output byte-identical after every change; 36/36 tests and the differential check pass.
+- **Next:** Step 17 (README section with the before/after story).
+- **Open question:** the pool still grows by copying (the rare multi-millisecond command). Try `pool_.reserve()` and measure, maybe as part of Step 17 or v3.
+
 ## 2026-11-22: Step 15 done, O(1) cancel and modify (code written by Claude, at Arnav's request)
 
 - Rewrote the storage in `src/order_book.hpp/.cpp`: orders live in a pool (`std::vector<Order>`), named by slot number; each price level is a doubly linked list of slots (`head`, `tail`, and `prev`/`next` in each order); the index maps id → slot; freed slots are reused from a free list. `Location` and the `std::deque` are gone. `command.cpp` and `main.cpp` didn't change.

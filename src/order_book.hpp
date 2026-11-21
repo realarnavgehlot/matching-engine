@@ -20,6 +20,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "output.hpp"
+
 enum class Side { Buy, Sell };
 
 // A position in the pool. kNoSlot means "no order" (like a null pointer).
@@ -45,8 +47,12 @@ struct Level {
 
 class OrderBook {
 public:
-    // Every output line is written to `out`.
+    // Every output line is written to `out`. Output is buffered: call flush() when done
+    // (the destructor also flushes).
     explicit OrderBook(std::ostream& out);
+
+    // Write any buffered output to the stream now.
+    void flush();
 
     // BUY or SELL: match, then any rest joins the book.
     void limit(std::uint64_t seq, Side side, std::int64_t id, std::int64_t qty, std::int64_t price);
@@ -99,5 +105,6 @@ private:
     // Hash containers are only used to look things up by key, never looped over (CLAUDE.md rule 5).
     std::unordered_map<std::int64_t, Slot> index_;  // id of each resting order -> its slot
     std::unordered_set<std::int64_t> usedIds_;      // every id an accepted order has used
-    std::ostream& out_;
+    // `mutable` so that print(), which doesn't change the book, can still write output.
+    mutable Output out_;
 };

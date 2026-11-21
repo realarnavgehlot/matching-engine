@@ -84,6 +84,7 @@ std::int64_t runAll(const std::vector<Command>& commands, std::uint64_t& outputB
     for (std::size_t i = 0; i < commands.size(); ++i) {
         runCommand(book, i + 1, commands[i]);
     }
+    book.flush();  // part of the work: make sure every byte reached the stream
     Clock::time_point end = Clock::now();
     outputBytes = buffer.bytes;
     return nanosBetween(start, end);

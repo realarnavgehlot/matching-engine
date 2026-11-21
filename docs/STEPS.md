@@ -401,8 +401,17 @@ Speed work changes how the book is stored, not what it prints. So the safety net
 - [x] Step 13: Differential test. `tools/reference_engine.py` is a second implementation of `docs/SPEC.md` in Python, built differently on purpose. `run_tests.py` checks it against every expected output, then checks that the engine and the reference print exactly the same lines on four seeded stress files.
 - [x] Step 14: Benchmarks. A separate program, `bench/bench.cpp`, that loads a command file into memory, runs it through `OrderBook` with output thrown away, and reports commands per second and latency per command (median, 99th percentile, worst). The clock lives only in the benchmark, never in the engine (rule 6). Record the v1 numbers in `docs/BENCHMARKS.md` before changing anything.
 - [x] Step 15: O(1) cancel and modify. Today CANCEL and MODIFY search their level one order at a time. Store orders in a pool (a `std::vector<Order>` plus a list of free slots), link the orders in each level as a doubly linked list of slot numbers, and have the index map an id straight to its slot. Measure again.
-- [ ] Step 16: Faster input and output. Step 14's numbers say they matter: parsing takes longer than the book, and the whole engine takes about 5 times as long as the book alone (see `docs/BENCHMARKS.md`). Ideas: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
+- [x] Step 16: Faster input and output. Step 14's numbers say they matter: parsing takes longer than the book, and the whole engine takes about 5 times as long as the book alone (see `docs/BENCHMARKS.md`). Ideas: avoid building a `std::istringstream` for every line, and write output to one big buffer. Measure again.
 - [ ] Step 17: README section with before/after numbers, and what each change bought.
+
+Things to be able to explain about Step 16:
+
+- What does `std::string_view` point at, and what would go wrong if it outlived the line it points into?
+- Why is `std::from_chars` faster than `std::istringstream >>`? What does each do that the other doesn't?
+- How was it proven that the new parser accepts and rejects exactly the same lines as the old one? Why plant a difference on purpose afterwards?
+- Why does `Output` make room for 20 characters before formatting a number?
+- Why did `std::ios::sync_with_stdio(false)` make the engine slower on this machine, and why did it stop mattering once `Output` existed?
+- Why do `main()` and the benchmark call `book.flush()`, and what would the benchmark get wrong without it?
 
 Things to be able to explain about Step 15:
 

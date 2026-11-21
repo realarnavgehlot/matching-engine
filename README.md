@@ -7,7 +7,7 @@ A limit order book and matching engine in C++, built step by step from an empty 
 - **Deterministic:** the same command file always gives exactly the same trades and the same final book.
 - One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
 
-**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is in progress: benchmarks and O(1) cancel/modify are done; next is faster input and output. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+**Status:** v1 is done: 36 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 (speed) is nearly done: benchmarks, O(1) cancel/modify and faster input/output are in; next is the write-up of what each change bought. The plan is in [`docs/STEPS.md`](docs/STEPS.md).
 
 ## Commands
 
@@ -38,7 +38,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -o bench.exe bench/bench.cpp src/command.cpp sr
 .\bench.exe build\bench_mixed.txt
 ```
 
-On an AMD Ryzen 5 5600H, the book handles about **2.5 million commands per second** on a realistic mix. Since v2 Step 15, a cancel or modify takes the same time however long its queue is: in a queue of 20,000 orders that's about **20 times faster** than v1 (about 0.2 µs instead of 5 µs). Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+On an AMD Ryzen 5 5600H, the book handles about **3.5 million commands per second** on a realistic mix, and `engine.exe` runs 1,000,000 commands end to end (reading, parsing, matching, writing 42 MB of output) in about **0.7 s**, down from about 1.7 s in v1. A cancel or modify takes the same time however long its queue is: in a queue of 20,000 orders that's about **20 times faster** than v1 (about 0.2 µs instead of 5 µs). Every result, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
 
 ## Run the tests
 
@@ -57,8 +57,10 @@ Then it runs four stress checks: random commands from fixed seeds (160,000 in to
 | `src/main.cpp` | Reads the command file and runs each command |
 | `src/command.hpp`, `src/command.cpp` | Turns one line into a command, and runs it on the book |
 | `src/order_book.hpp`, `src/order_book.cpp` | The order book: a pool of orders linked into price levels; matching, cancel, modify, and all output |
+| `src/output.hpp` | A buffered writer for the output lines (64 KB blocks, numbers with `std::to_chars`) |
 | `bench/bench.cpp` | The benchmark: times the book on a command file |
 | `tools/gen_bench.py` | Writes the seeded benchmark workloads into `build/` |
+| `tools/time_engine.py` | Times the whole `engine.exe` on a command file, from outside |
 | `docs/BENCHMARKS.md` | Benchmark results, and how they were measured |
 | `docs/SPEC.md` | The rules and the exact input/output format: the contract the tests check |
 | `docs/STEPS.md` | The build plan, one small step at a time |

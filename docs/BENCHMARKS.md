@@ -115,3 +115,62 @@ The output is unchanged: all 36 tests pass, and the engine matches the reference
 2. **Mixed workload: the slow tail shrank most.** p99 went from 4.2 µs to 1.3 µs, because the cancels and modifies that used to search long queues no longer do. Throughput is a little better, but within the noise of this laptop.
 3. **PRINT of a big book got slower** (about 4 ms → about 12 ms, one sample each). A deque keeps a level's orders next to each other in memory; a linked list jumps around the pool, especially once freed slots are reused, so the CPU's cache helps less. PRINT is rare, so this is a good trade, but it's the classic cost of linked lists.
 4. **A few single commands still take milliseconds** (mixed `limit` max about 13 ms). The likely cause is the pool's `std::vector` growing: when it runs out of room it copies every order to a bigger array. Reserving space up front would remove that. Not done yet.
+
+---
+
+## v2 Step 16: faster input and output (2026-11-22)
+
+Same machine, compiler and workloads. End-to-end times come from `tools/time_engine.py`, which runs the real `engine.exe` on `build/bench_mixed.txt` (1,000,001 commands) with its 41,658,934 bytes of output written to a file; 3 rounds of 5 runs, best and median per round. After every change the output was compared byte for byte with the output before Step 16, and was identical.
+
+### Each change, measured end to end
+
+| Change | Best | Median | Kept? |
+|---|---|---|---|
+| Before Step 16 | 1.43–1.93 s | 1.66–2.02 s | |
+| `std::ios::sync_with_stdio(false)` | 2.00–2.37 s | 2.27–2.67 s | **No: slower** |
+| New parser (`std::string_view` words, `std::from_chars`; no `std::istringstream`, `std::string` or `std::vector` per line) | 0.98–1.11 s | 1.05–1.17 s | Yes |
+| + `Output` buffer (64 KB, numbers with `std::to_chars`, one big write per 64 KB) | 0.71–0.79 s | 0.74–0.86 s | Yes |
+| + `sync_with_stdio(false)` again | 0.66–0.86 s | 0.71–0.96 s | No: no clear difference |
+| Final build, measured again | **0.63–0.80 s** | **0.66–0.84 s** | |
+
+**About 2.5 times faster end to end.**
+
+Why `sync_with_stdio(false)` made things slower here: with sync on, `std::cout` writes through C's `fwrite`, which has its own buffer. With sync off, libstdc++ on Windows uses its own buffer of `BUFSIZ` bytes, which is only 512 bytes with this compiler, so the output goes to the operating system in many tiny writes. Once the engine writes 64 KB blocks itself, the setting stops mattering. Common advice, measured, didn't hold on this setup.
+
+### Parsing
+
+| | Before | After |
+|---|---|---|
+| `parseCommand`, mixed workload | 520–710 ns per line | 64–72 ns per line (**about 9 times faster**) |
+
+The new parser was checked against the old one on 3,000,000 random lines (real command words, edge-case numbers such as `+5`, `007`, `10.50` and 2^63, every kind of whitespace, and random bytes): 0 differences. The same check found 292,910 differences when `\v` was planted as "not a space", so it can catch a difference when there is one.
+
+### Book throughput (bench.exe)
+
+The book's own time also dropped, because formatting each output line is part of its work.
+
+| Workload | Step 15 best | Step 16 best | Step 16 median |
+|---|---|---|---|
+| mixed | 2.47–3.00 million/s | 3.35–4.66 million/s (214–298 ms) | 3.22–3.62 million/s (276–310 ms) |
+| deep_cancel | 6.40–6.99 million/s | 6.42–8.40 million/s | 5.54–7.72 million/s |
+| deep_modify | 5.66–6.33 million/s | 8.68–9.18 million/s | 6.40–8.22 million/s |
+
+### Latency per command, mixed (ns), Step 15 → Step 16
+
+| Type | p50 | p90 | p99 | p99.9 |
+|---|---|---|---|---|
+| all | 300 → 200 | 700 → 500 | 1,300 → 1,000 | 3,100 → 2,300 |
+| limit | 300 → 200 | 600 → 500 | 1,000 → 800 | 4,300 → 3,600 |
+| cancel | 300 → 200 | 700 → 600 | 1,100 → 1,000 | 1,800 → 1,800 |
+
+(One run each; the clock steps are 100 ns.)
+
+### Where the time goes now (mixed, end to end, about 0.7 s)
+
+| Part | About |
+|---|---|
+| The book, including formatting output | 0.25–0.30 s |
+| Parsing | 0.07 s |
+| Everything else: starting the process, reading 18 MB line by line with `std::getline`, and writing 42 MB to disk | 0.3–0.4 s |
+
+Reading the whole file at once instead of line by line might save a little more, but this is now small next to the book. Step 16 stops here.
