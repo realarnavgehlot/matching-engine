@@ -1,14 +1,69 @@
 # Matching Engine (C++)
 
-A limit order book and matching engine in C++, built step by step from an empty folder.
+[![tests](https://github.com/realarnavgehlot/matching-engine/actions/workflows/tests.yml/badge.svg)](https://github.com/realarnavgehlot/matching-engine/actions/workflows/tests.yml)
 
-- Matches orders by **price-time priority**: best price first; at the same price, the earliest order first.
-- Supports limit, market, IOC (Immediate Or Cancel) and FOK (Fill Or Kill) orders, modify, cancel and Good-Till-Time expiry, and rejects invalid input with a clear reason.
-- Time is logical: it only moves when the input says `TIME <t>`, so expiry is as deterministic as everything else.
-- **Deterministic:** the same command file always gives exactly the same trades and the same final book.
-- One thread owns the book. Every command gets a sequence number and is processed completely before the next one starts.
+A limit order book and matching engine in C++17: the program at the heart of an exchange, which keeps every buy and sell order that hasn't traded yet and matches them when their prices meet. Built step by step from an empty folder.
 
-**Status:** v3 is done: order expiry, a test for hidden dependence on hash-table order, and [`docs/DESIGN.md`](docs/DESIGN.md), which explains every design decision and what was rejected. v2 is done. v1 made it correct, and it is tested with 50 tests, one or more for every rule, plus seeded stress checks compared line by line with an independent reference implementation. v2 made it about 3.5 times faster end to end without changing a single byte of output (see [Performance](#performance) below). The plan is in [`docs/STEPS.md`](docs/STEPS.md).
+- **Price-time priority:** best price first; at the same price, the earliest order first.
+- **Order types:** limit, market, IOC (Immediate Or Cancel), FOK (Fill Or Kill), Good-Till-Time expiry, modify and cancel. Invalid input is rejected with a clear reason.
+- **Deterministic:** the same command file always gives byte-for-byte the same output. There is no clock and no randomness inside the engine: time only moves when the input says `TIME <t>`.
+- **Fast:** about 4–5 million commands per second in the book; 1,000,000 commands end to end, including 42 MB of output, in about 0.4–0.6 s on a laptop. A cancel takes the same time however long its queue is.
+- **Checked hard:** 51 hand-written tests, a second engine written independently in Python and compared line by line on hundreds of thousands of seeded random commands, a build with a scrambled hash function to catch hidden dependence on hash-table order, and planted bugs to prove the checks can fail. All of it runs on Linux on every push.
+
+**Status:** complete through v4. The plan, and questions to check understanding of every step, are in [`docs/STEPS.md`](docs/STEPS.md); why it's built this way is in [`docs/DESIGN.md`](docs/DESIGN.md).
+
+## A quick example
+
+[`data/example.txt`](data/example.txt):
+
+```
+SELL 1 5 10000
+SELL 2 5 10000
+SELL 3 4 10100
+BUY 4 7 10050
+BUY 5 3 9900 GTT 100
+PRINT
+BUY 6 10 10100 FOK
+TIME 100
+CANCEL 5
+BUY 7 0 10000
+PRINT
+```
+
+`.\engine.exe data\example.txt` prints:
+
+```
+[4] TRADE buy=4 sell=1 qty=5 price=10000
+[4] TRADE buy=4 sell=2 qty=2 price=10000
+[6] BOOK
+  ASK 10000: 2x3
+  ASK 10100: 3x4
+  BID 9900: 5x3
+[7] UNFILLED id=6 qty=10
+[8] EXPIRED id=5 qty=3
+[9] CANCEL_REJECTED id=5
+[10] REJECTED reason=bad_quantity
+[11] BOOK
+  ASK 10000: 2x3
+  ASK 10100: 3x4
+```
+
+(The test `tests/readme_example` checks that this output stays exactly right.) Every line starts with the sequence number of the command that caused it. Order 4 buys from order 1 before order 2 (same price, order 1 came first), and pays the sellers' price, not its own limit. The FOK can't get all 10 at Rs 101.00 or less, so nothing trades. At time 100, order 5 expires, so cancelling it later is rejected.
+
+## How it works
+
+```
+ asks: std::map<price, Level>  lowest first        bids: std::map<price, Level, std::greater>  highest first
+   10000 -> [order 2: 3 left]                         9900 -> [order 5: 3 left]
+   10100 -> [order 3: 4 left]
+
+ Each Level is a doubly linked list through the pool:  head <-> ... <-> tail   (front trades first)
+ pool:      std::vector<Order>   every resting order, named by its slot number; freed slots are reused
+ index:     id -> slot           (hash table, lookup only: never looped over)
+ expiries:  (GTT time, seq) -> slot   (std::map: the front expires first)
+```
+
+An incoming order trades against the front of the best level on the other side until it's filled or the price no longer crosses; what's left rests at the back of its own level (or is dropped, for market, IOC and FOK orders). Cancel and modify find an order through the index and unlink it in a few steps. [`docs/DESIGN.md`](docs/DESIGN.md) explains each choice and what was rejected.
 
 ## Commands
 
@@ -46,8 +101,9 @@ Measured on an AMD Ryzen 5 5600H laptop (Windows 11, g++ 10.3, `-O2`). "End to e
 | Step 15 | Orders in a pool, each level a doubly linked list of slots, id → slot index: cancel and modify no longer search the queue | 1.4–1.9 s | 2.5–3.0 M/s | about 0.2 µs |
 | Step 16 | Parser on `std::string_view` and `std::from_chars` (9x faster per line); output buffered in 64 KB blocks, numbers with `std::to_chars` | 0.63–0.80 s | 3.4–4.7 M/s | about 0.2 µs |
 | Step 17 | Hash tables sized once from the file's size, instead of growing (and moving every entry) many times | 0.52–0.68 s | 4.6–5.0 M/s | about 0.2 µs |
+| Step 23 | The whole file read at once and walked with `std::string_view`, instead of `std::getline` per line | about 26% faster than before it (0.37 s vs 0.50 s side by side) | unchanged | about 0.2 µs |
 
-The v1 end-to-end time was measured with shell timing, the later ones with `tools/time_engine.py`; both are wall-clock times that include starting the program. Adding expiry in v3 cost about 4% end to end on this workload (which has no GTT orders): each order grew from 48 to 64 bytes.
+The v1 end-to-end time was measured with shell timing, the later ones with `tools/time_engine.py`; both are wall-clock times that include starting the program. Adding expiry in v3 cost about 4% end to end on this workload (which has no GTT orders): each order grew from 48 to 64 bytes. IOC and FOK in v4 cost nothing measurable.
 
 What each step taught:
 
@@ -56,7 +112,7 @@ What each step taught:
 3. **Small allocations add up.** Building a `std::istringstream`, a `std::string` per word and a `std::vector` per line cost about 0.5 µs a line. Views and `std::from_chars` cut that to about 0.07 µs.
 4. **Common advice can be wrong for your setup.** `std::ios::sync_with_stdio(false)` made this engine *slower*: on Windows with this compiler it leaves `std::cout` with a 512-byte buffer. It was measured and left out.
 5. **Guesses about the cause can be wrong too.** Rare commands took over 10 ms. The guess was the pool's vector growing. Experiments showed it was the hash tables rehashing; reserving them cut the worst limit order from 11–13 ms to 1–2 ms.
-6. **Speed work needs a safety net.** Every change was checked with the 36 tests, a byte-for-byte comparison of the full 41.7 MB output, and a differential test against an independent reference engine. The new parser was also compared with the old one on 3,000,000 random lines.
+6. **Speed work needs a safety net.** Every change was checked with the tests (36 at the time, 51 now), a byte-for-byte comparison of the full 41.7 MB output, and a differential test against an independent reference engine. The new parser was also compared with the old one on 3,000,000 random lines.
 
 Every number, and how it was measured, is in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md). To reproduce:
 
@@ -75,13 +131,15 @@ python run_tests.py
 
 This builds the engine, runs every test in `tests/` twice, and compares the output with the expected output. If the two runs differ, the engine isn't deterministic. Each test is also run through `tools/reference_engine.py`, a second, independent implementation of the spec, and through a second build of the engine with a deliberately different hash function (`-DENGINE_SCRAMBLED_HASH`), which must print exactly the same thing: that catches any hidden dependence on hash-table order.
 
-Then it runs four stress checks: random commands from fixed seeds (160,000 in total), each run twice, with every output line and every printed book checked, and the whole output compared line by line with the reference engine's (a differential test). Add `--no-stress` to skip them. (If `python` isn't found, try `py run_tests.py`.)
+Then it runs four stress checks: random commands from fixed seeds (160,000 in total, including GTT, IOC and FOK orders, `TIME` commands and invalid lines), each run twice and through the scrambled-hash build, with every output line and every printed book checked, and the whole output compared line by line with the reference engine's (a differential test). Add `--no-stress` to skip them. (If `python` isn't found, try `py run_tests.py`.)
+
+The same suite runs on Linux, with a newer g++, on every push: see [`.github/workflows/tests.yml`](.github/workflows/tests.yml) and the badge at the top.
 
 ## What's in this folder
 
 | Path | What it is |
 |---|---|
-| `src/main.cpp` | Reads the command file and runs each command |
+| `src/main.cpp` | Reads the whole command file and runs each line as a command |
 | `src/command.hpp`, `src/command.cpp` | Turns one line into a command, and runs it on the book |
 | `src/order_book.hpp`, `src/order_book.cpp` | The order book: a pool of orders linked into price levels; matching, cancel, modify, and all output |
 | `src/output.hpp` | A buffered writer for the output lines (64 KB blocks, numbers with `std::to_chars`) |
@@ -96,6 +154,8 @@ Then it runs four stress checks: random commands from fixed seeds (160,000 in to
 | `tests/` | Test cases: `name.in.txt` holds the commands, `name.expected.txt` the exact expected output |
 | `tools/gen_commands.py` | Makes a random but repeatable command file from a seed, for stress tests |
 | `tools/reference_engine.py` | A second implementation of the spec in Python, used to check the engine's output line by line |
-| `data/sample.txt` | A sample command file |
-| `run_tests.py` | Builds the engine and runs all the tests and the stress check |
+| `data/sample.txt` | A sample command file (no trades) |
+| `data/example.txt` | The quick example above, with comments |
+| `run_tests.py` | Builds the engine (and the benchmark and the scrambled-hash build) and runs all the tests and stress checks |
+| `.github/workflows/tests.yml` | Runs `run_tests.py` on Linux on every push |
 | `CLAUDE.md` | Instructions for Claude Opus, the AI assistant used on this project |

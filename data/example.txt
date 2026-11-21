@@ -1,0 +1,25 @@
+# A short tour of the engine. Prices are in paise: 10000 is Rs 100.00.
+
+# Three sellers. Orders 1 and 2 are both at Rs 100.00; order 1 arrived first.
+SELL 1 5 10000
+SELL 2 5 10000
+SELL 3 4 10100
+
+# A buyer willing to pay up to Rs 100.50 buys 7: the cheapest first, and at the same price,
+# the oldest first. Each trade is at the seller's price.
+BUY 4 7 10050
+
+# A buyer at Rs 99.00 that expires when the clock reaches 100.
+BUY 5 3 9900 GTT 100
+PRINT
+
+# Fill Or Kill: 10 can't be bought at Rs 101.00 or less (only 7 are for sale), so nothing trades.
+BUY 6 10 10100 FOK
+
+# Time passes; order 5 expires.
+TIME 100
+
+# Mistakes are rejected with a reason, and nothing changes.
+CANCEL 5
+BUY 7 0 10000
+PRINT

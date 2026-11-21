@@ -2,6 +2,14 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: Step 24 done, v4 complete (by Claude, while Arnav was away)
+
+- README rewritten at the top: what a matching engine is, a test badge, a quick example (`data/example.txt`) with its real output and an explanation, a short "how it works" diagram of the data structures, the Step 23 row in the performance table.
+- `tests/readme_example`: the README's example as a test (51 tests now), so the README can't silently go out of date.
+- Every step from 19 to 24 was tested (50–51 tests, 4 stress seeds against the reference and the scrambled-hash build, 30 extra seeds for Steps 21) and pushed on its own; CI on Linux passes.
+- **Next (for Arnav):** nothing is planned after v4. Before adding anything, read the code with the questions in `docs/STEPS.md` (Steps 13–24 have question lists) until every line can be explained, and read `docs/DESIGN.md`. All code from Step 1 on was written by Claude.
+- **Open questions:** (1) `CLAUDE.md` still says Arnav writes the engine code; decide whether to keep that rule going forward. (2) Packing `Order` (64 bytes) might win back the ~4% that expiry cost; only if a measurement says so.
+
 ## 2026-11-22: Steps 22 and 23 done, CI on Linux and faster input (by Claude, while Arnav was away)
 
 - Step 22: `.github/workflows/tests.yml` runs `python run_tests.py` on ubuntu-latest (newer g++) on every push and pull request. It now passes.

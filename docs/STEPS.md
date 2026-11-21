@@ -456,7 +456,7 @@ Planned and built while Arnav was away, at his request. Each step is tested, com
 - [x] Step 21: IOC and FOK orders. `BUY`/`SELL ... IOC` (Immediate Or Cancel: trade what you can now, drop the rest) and `... FOK` (Fill Or Kill: trade the whole quantity now, or nothing). Rules 18–20 in `docs/SPEC.md`. Tests, reference engine and generator; benchmark workload unchanged.
 - [x] Step 22: Continuous integration. A GitHub Actions workflow runs `python run_tests.py` on Linux on every push: a second operating system and a newer compiler, which also checks that the output doesn't depend on the platform.
 - [x] Step 23: Faster input. Read the whole command file at once instead of line by line, if measuring shows it helps.
-- [ ] Step 24: README polish: a quick example with its output, a short "how it works" section, and links to the design and benchmark documents.
+- [x] Step 24: README polish: a quick example with its output, a short "how it works" section, and links to the design and benchmark documents.
 
 Things to be able to explain about Steps 22 and 23:
 
