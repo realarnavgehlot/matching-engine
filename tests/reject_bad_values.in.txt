@@ -1,0 +1,14 @@
+# bad_id, bad_quantity, bad_price; the first failing check wins.
+# A rejected order does not use up its id, so the last BUY can use id 1.
+BUY 0 5 10000
+SELL -3 5 10000
+BUY 1 0 10000
+SELL 1 -5 10000
+BUY 1 5 0
+SELL 1 5 -10000
+BUY 0 0 0
+BUY 1 0 0
+CANCEL 0
+CANCEL -1
+BUY 1 5 10000
+PRINT

@@ -1,0 +1,4 @@
+[2] MODIFIED id=1 qty=5 price=10100
+[3] CANCELLED id=1
+[4] BOOK
+  (empty)

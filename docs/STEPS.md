@@ -376,8 +376,25 @@ To remove order `id` from a queue, search the queue for it (with `std::find_if`,
 
 ---
 
-## After v0 (planned in detail later)
+## v1 checklist: correctness
 
-- **v1, correctness:** reject bad input (duplicate ids, zero quantity, unknown commands); market orders; modify; split the code into `order_book.hpp` and `order_book.cpp` without changing any output (the tests prove it); a random command generator with a fixed seed, for tests with 100,000+ orders.
+The rules for every v1 step are in `docs/SPEC.md`.
+
+- [x] Step 8: Split the code into `src/order_book.hpp` and `src/order_book.cpp`, with no change to any output (the 18 v0 tests prove it)
+- [x] Step 9: Reject bad input: `REJECTED reason=...` for unknown commands, bad format, bad id, quantity or price, and duplicate ids. Lines with only spaces count as blank.
+- [x] Step 10: Market orders: `MARKET_BUY` and `MARKET_SELL` trade at any price; any rest is dropped with `UNFILLED`
+- [x] Step 11: `MODIFY`: same price and no more quantity keeps the order's place; anything else re-enters it at the back
+- [x] Step 12: `tools/gen_commands.py`, a seeded random command generator, and a stress check in `run_tests.py`: 100,000 commands, run twice, every line well formed, every book sorted and never crossed
+
+Things to be able to explain about v1:
+
+- Why does a rejected command still use up a sequence number, but a rejected order not use up its id?
+- Why can't `std::istringstream >> id` be trusted for `-1` or `5x`, and what does `std::from_chars` do differently?
+- Why does increasing an order's quantity lose its place, but reducing it doesn't? (Think about fairness to the orders behind it.)
+- Why is `match()` a template, and why can its definition live in `order_book.cpp` and not in the header?
+- What can the stress check catch, and what can't it? (It checks the shape of the output, not that each trade is the right one.)
+
+## After v1 (planned in detail later)
+
 - **v2, speed:** a faster book (pooled memory), benchmarks (orders per second, latency), and a differential test: run the simple and the fast version on the same commands and check that the outputs are identical.
 - **v3, polish:** order expiry as a command (never by reading the clock), a test that catches hidden dependence on hash-map order, and a README that explains the design decisions.

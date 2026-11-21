@@ -1,0 +1,6 @@
+# Rule 2: a MARKET_BUY takes asks at any price, best first, at the resting price.
+SELL 1 5 10000
+SELL 2 5 10100
+SELL 3 5 10200
+MARKET_BUY 4 7
+PRINT

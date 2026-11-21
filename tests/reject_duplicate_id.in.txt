@@ -1,0 +1,12 @@
+# duplicate_id: an id can't be reused, whether the order is resting,
+# filled (as resting or incoming), cancelled, or the new order is a market order.
+BUY 1 5 9900
+BUY 1 5 9800
+SELL 2 5 10000
+BUY 3 5 10000
+SELL 2 1 10000
+SELL 3 1 10000
+CANCEL 1
+BUY 1 2 9900
+MARKET_SELL 1 2
+PRINT

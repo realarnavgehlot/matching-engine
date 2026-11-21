@@ -1,0 +1,5 @@
+# After a MODIFY moves an order, CANCEL must find it at its new price.
+SELL 1 5 10000
+MODIFY 1 5 10100
+CANCEL 1
+PRINT

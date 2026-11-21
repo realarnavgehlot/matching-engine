@@ -1,0 +1,5 @@
+# Rule 3: a MARKET_SELL takes bids at any price, best first, at the resting price.
+BUY 1 5 10000
+BUY 2 5 9900
+MARKET_SELL 3 8
+PRINT

@@ -1,0 +1,6 @@
+# unknown_command: command words are upper case and must be one of the known ones.
+buy 1 5 10000
+HELLO
+BUYY 1 5 10000
+CANCEL_ALL
+PRINT

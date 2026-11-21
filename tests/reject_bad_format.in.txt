@@ -1,0 +1,13 @@
+# bad_format: wrong number of words, or a word that is not a whole number.
+BUY 1 5
+BUY 1 5 10000 7
+BUY x 5 10000
+BUY 1 5 100.50
+BUY 1 +5 10000
+BUY 99999999999999999999 5 10000
+CANCEL
+CANCEL 1 2
+MARKET_BUY 1 5 10000
+MODIFY 1 5
+PRINT now
+PRINT

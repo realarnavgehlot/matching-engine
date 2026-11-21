@@ -1,0 +1,11 @@
+[1] MODIFY_REJECTED id=5
+[3] REJECTED reason=bad_quantity
+[4] REJECTED reason=bad_price
+[5] REJECTED reason=bad_id
+[6] REJECTED reason=bad_format
+[7] TRADE buy=1 sell=2 qty=5 price=10000
+[8] MODIFY_REJECTED id=1
+[9] UNFILLED id=3 qty=1
+[10] MODIFY_REJECTED id=3
+[11] BOOK
+  (empty)

@@ -1,0 +1,6 @@
+# Rule 12: a modified order enters again and can trade at once.
+# MODIFIED comes first, then the trades.
+SELL 1 5 10100
+BUY 2 5 10000
+MODIFY 2 8 10100
+PRINT

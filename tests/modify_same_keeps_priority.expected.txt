@@ -1,0 +1,4 @@
+[3] MODIFIED id=1 qty=5 price=10000
+[4] TRADE buy=3 sell=1 qty=5 price=10000
+[5] BOOK
+  ASK 10000: 2x5

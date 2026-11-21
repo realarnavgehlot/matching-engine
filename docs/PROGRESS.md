@@ -2,6 +2,15 @@
 
 Newest entry first. Add one at the end of every session: the date, the step, what you did, what's next, and any open questions.
 
+## 2026-11-22: v1 done, Steps 8–12 (code written by Claude, at Arnav's request)
+
+- `docs/SPEC.md` now defines v1: input rules, the `REJECTED reason=...` line and the order of checks, `MARKET_BUY`/`MARKET_SELL` with `UNFILLED`, and `MODIFY` (rules 10–12). These rules follow common exchange practice; change them if you disagree.
+- Code split into `src/main.cpp` (reads and parses lines), `src/order_book.hpp` and `src/order_book.cpp` (the book). The build command now lists both `.cpp` files.
+- Numbers are parsed with `std::from_chars`, so `-1`, `5x`, `10.50` and numbers too big for 64 bits are caught. The v0 hazard (`SELL 9 5` read as price 0, matching every bid) is now `bad_format`.
+- 18 new tests (36 in total), plus a stress check: `tools/gen_commands.py` with seed 1 makes 100,001 commands; the engine runs them twice in a few seconds with identical output, about 48,000 trades, and every printed book sorted and never crossed. Checked that the stress checker does catch crossed, unsorted or malformed output.
+- **Next:** read `order_book.cpp` and the v1 questions in `docs/STEPS.md`; then plan v2 (speed).
+- **Open question:** the stress check proves the output is well formed, not that every trade is right. A differential test against a second, independent implementation (planned for v2) would close that gap.
+
 ## 2026-11-22: Step 7 done, v0 is on GitHub
 
 - `git init -b main` inside `matching-engine`, so the project has its own repository (separate from the one in `C:\Users\gehlo`). First commit: `736215c`.

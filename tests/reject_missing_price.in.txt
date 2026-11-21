@@ -1,0 +1,6 @@
+# In v0 the missing price was read as 0, so this SELL matched every bid.
+# Now it is rejected and the book is untouched.
+BUY 1 5 10000
+BUY 2 5 9900
+SELL 9 5
+PRINT

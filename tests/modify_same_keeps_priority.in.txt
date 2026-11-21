@@ -1,0 +1,6 @@
+# Rule 11: same price, same quantity: nothing changes, order 1 stays first.
+SELL 1 5 10000
+SELL 2 5 10000
+MODIFY 1 5 10000
+BUY 3 5 10000
+PRINT

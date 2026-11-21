@@ -1,0 +1,5 @@
+[4] MODIFIED id=2 qty=4 price=10000
+[5] MODIFIED id=1 qty=5 price=10000
+[6] BOOK
+  BID 10000: 2x4 1x5
+  BID 9900: 3x5

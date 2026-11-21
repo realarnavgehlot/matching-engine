@@ -1,0 +1,8 @@
+# Lines with only spaces or tabs, and indented comments, get no sequence number.
+   
+	
+   # an indented comment
+SELL 1 5 10000
+  
+   BUY 2 3 10000
+PRINT

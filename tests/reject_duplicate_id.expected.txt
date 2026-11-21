@@ -1,0 +1,9 @@
+[2] REJECTED reason=duplicate_id
+[4] TRADE buy=3 sell=2 qty=5 price=10000
+[5] REJECTED reason=duplicate_id
+[6] REJECTED reason=duplicate_id
+[7] CANCELLED id=1
+[8] REJECTED reason=duplicate_id
+[9] REJECTED reason=duplicate_id
+[10] BOOK
+  (empty)

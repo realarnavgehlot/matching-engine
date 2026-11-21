@@ -1,0 +1,7 @@
+# Market orders are checked for bad_id, bad_quantity and duplicate_id.
+MARKET_BUY 1 0
+MARKET_SELL 0 5
+MARKET_BUY 1 -2
+BUY 1 5 10000
+MARKET_SELL 1 2
+PRINT

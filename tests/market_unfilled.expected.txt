@@ -1,0 +1,6 @@
+[2] TRADE buy=2 sell=1 qty=3 price=10000
+[2] UNFILLED id=2 qty=2
+[3] UNFILLED id=3 qty=4
+[4] CANCEL_REJECTED id=2
+[5] BOOK
+  (empty)

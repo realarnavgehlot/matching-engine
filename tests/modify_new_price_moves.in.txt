@@ -1,0 +1,8 @@
+# Rule 12: a new price moves the order to the back of the new level, even with less
+# quantity. The old level is removed when it becomes empty.
+BUY 1 5 9900
+BUY 2 5 9800
+BUY 3 5 9900
+MODIFY 2 4 10000
+MODIFY 1 5 10000
+PRINT

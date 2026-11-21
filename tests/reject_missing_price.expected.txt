@@ -1,0 +1,4 @@
+[3] REJECTED reason=bad_format
+[4] BOOK
+  BID 10000: 1x5
+  BID 9900: 2x5

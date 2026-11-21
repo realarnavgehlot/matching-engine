@@ -1,0 +1,6 @@
+# Rule 12: more quantity: order 1 goes to the back, behind order 2.
+SELL 1 5 10000
+SELL 2 5 10000
+MODIFY 1 8 10000
+BUY 3 6 10000
+PRINT

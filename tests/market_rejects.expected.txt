@@ -1,0 +1,6 @@
+[1] REJECTED reason=bad_quantity
+[2] REJECTED reason=bad_id
+[3] REJECTED reason=bad_quantity
+[5] REJECTED reason=duplicate_id
+[6] BOOK
+  BID 10000: 1x5

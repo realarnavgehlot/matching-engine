@@ -1,0 +1,3 @@
+[2] TRADE buy=2 sell=1 qty=3 price=10000
+[3] BOOK
+  ASK 10000: 1x2

@@ -1,0 +1,4 @@
+[3] MODIFIED id=2 qty=8 price=10100
+[3] TRADE buy=2 sell=1 qty=5 price=10100
+[4] BOOK
+  BID 10100: 2x3
